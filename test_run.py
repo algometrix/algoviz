@@ -2,10 +2,10 @@
 class VizList(list):
     def __init__(self, array):
         self._array = array
-    def __add__(self, *args, **kwargs):
-        return self._array.__add__(*args, **kwargs)
-    def __class__(self, *args, **kwargs):
-        return self._array.__class__(*args, **kwargs)
+    def __add__(self, args):
+        # Calling __add__ didn't work. Using extend workaround for now.
+        self._array.extend(args)
+        return self._array
     def __contains__(self, *args, **kwargs):
         return self._array.__contains__(*args, **kwargs)
     def __delattr__(self, *args, **kwargs):
@@ -14,8 +14,6 @@ class VizList(list):
         return self._array.__delitem__(*args, **kwargs)
     def __delslice__(self, *args, **kwargs):
         return self._array.__delslice__(*args, **kwargs)
-    def __doc__(self, *args, **kwargs):
-        return self._array.__doc__(*args, **kwargs)
     def __eq__(self, *args, **kwargs):
         return self._array.__eq__(*args, **kwargs)
     def __format__(self, *args, **kwargs):
@@ -87,8 +85,11 @@ class VizList(list):
     
 
 def test_list_fetch():
-    _list = VizList([1, 2, 3, 4, 5])
-    print(_list[::-1])
+    _list_1 = VizList([1, 2, 3])
+    _list_2 = VizList([4, 5, 6])
+    print(_list_1[1:3])
+    print(sum(_list_1))
+    print(_list_1 + _list_2)
 
 if __name__ == "__main__":
     test_list_fetch()
