@@ -1,17 +1,29 @@
 from rich.console import Console
 from rich.table import Table
+from rich import print
 import time
 
 
 class VizList(list):
-    def __init__(self, array, title_name='Array', sleep_time=0, highlight_color='red', show_init=True):
-        self._array = array
-        self._ = array
+    status = {'override_get': True}
+
+    def __init__(self, array, title_name='Array', sleep_time=0, highlight_color='red', show_init=True, parent=None,
+                 override_get=True):
+        # print('New : ', title_name, array)
+        if len(array) > 0 and isinstance(array[0], list):
+            self._array = []
+            for i in range(len(array)):
+                self._array.append(VizList(array[i], show_init=False, parent=self))
+        else:
+            self._array = array
+
+        self._ = self._array
+        self.parent = parent
         self._last_get_index = None
         self.sleep_time = sleep_time
         self.table_name = title_name
         self.highlight_color = highlight_color
-        self.recursive_list_fetch = False
+        self.parent_list = False
         self.last_index_get = None
         if show_init: self.show_list(table_name=self.table_name + ' Init')
 
@@ -44,41 +56,45 @@ class VizList(list):
 
     def __getitem__(self, *args, **kwargs):
         # print('Get Item : {}'.format(args))
+        # global status
         res = self._array.__getitem__(*args, **kwargs)
-        print(args)
+        if not self.status['override_get']:
+            return res
+        # print('\nList get ', self.table_name, self._array)
         # If result in not a list
         if not isinstance(res, list):
             index = args[0]
             # If get is not for a 2D List
-            print('D : ', self.recursive_list_fetch)
-            if not self.recursive_list_fetch:
+            # print('D : ', self.parent_list)
+            if not self.parent_list:
                 self.show_list(highlight=[index, index], table_name=self.table_name)
             else:
-                print('I : ', index, self.last_index_get)
-                #self.show_list(highlight=[index, self.last_index_get], table_name=self.table_name)
+                # print('I : ', self.last_index_get, index)
+                self.show_list(highlight=[index, self.last_index_get], table_name=self.parent.table_name)
 
-            self.recursive_list_fetch = False
+            self.parent_list = None
             return res
         elif isinstance(res, list):
             # args is a splice
             if not isinstance(args[0], int):
+                # print('Returning list and is splice')
                 start = args[0].start
                 stop = args[0].stop
                 # print(res, args, left, stop)
                 self.show_list(table_name=self.table_name, show_index=False, highlight=[start, stop], is_splice=True)
                 return VizList(res, show_init=False)
             else:
-                print('list')
+                # TODO : Broken 2D Handling
+                # print('list')
+                # print(args)
                 index = args[0]
-                self.recursive_list_fetch = True
-                self.last_index_get = index
-                pass #print(args)
-                #self._array[index] = res
+                res.parent_list = self
+                res.last_index_get = index
+                # print('Args : ', args)
+                # self._array[index] = res
 
-            return self._array
-
-
-
+            # print(res)
+            return res
 
     def __getslice__(self, *args, **kwargs):
         # print('Get Slice ', args)
@@ -173,25 +189,36 @@ class VizList(list):
     def sort(self, *args, **kwargs):
         return self._array.sort(*args, **kwargs)
 
-    def render_list(self, array, highlight=[-1, -1], highlight_color='red', is_splice=False):
+    def render_list(self, array, highlight=[-1, -1], highlight_color='red', is_splice=False, one_dimension=True):
+        # array.__getitem__ = super().__getitem__
         if not is_splice:
-            return tuple([f'[{highlight_color}]' + str(val) + f'[/{highlight_color}]' if highlight[0] <= index <=
-                                                                                         highlight[1] else str(val) for
-                          index, val in
-                          enumerate(array)])
+            if highlight:
+                return tuple([f'[{highlight_color}]' + str(val) + f'[/{highlight_color}]' if highlight[0] <= index <=
+                                                                                             highlight[1] else str(val)
+                              for
+                              index, val in
+                              enumerate(array)])
+            else:
+                return tuple([str(val)
+                              for
+                              index, val in
+                              enumerate(array)])
         else:
-            return tuple([f'[{highlight_color}]' + str(val) + f'[/{highlight_color}]' if highlight[0] <= index <
-                                                                                         highlight[1] else str(val) for
-                          index, val in
-                          enumerate(array)])
+            if highlight:
+                return tuple([f'[{highlight_color}]' + str(val) + f'[/{highlight_color}]' if highlight[0] <= index <
+                                                                                             highlight[1] else str(val)
+                              for
+                              index, val in
+                              enumerate(array)])
 
-    def show_list(self, table_name='List', show_index=True, highlight=None, is_splice=False):
+    def show_list(self, table_name='List', show_index=True, highlight=None, is_splice=False, one_dimension=True):
         n = len(self._array)
         list_1d, list_2d = 1, 2
         list_type = None
-        if n and isinstance(self._array, list) and isinstance(self._array[0], list):
+        display = self._array if not self.parent_list else self.parent_list
+        if n and isinstance(display, list) and isinstance(display[0], list):
             list_type = list_2d
-        elif n and isinstance(self._array, list) and not isinstance(self._array[0], list):
+        elif n and isinstance(display, list) and not isinstance(display[0], list):
             list_type = list_1d
 
         table = Table(title=table_name, show_header=show_index)
@@ -203,24 +230,39 @@ class VizList(list):
 
             if isinstance(highlight, list):
                 table.add_row(*self.render_list(self._array, highlight=highlight, is_splice=is_splice,
-                                                highlight_color=self.highlight_color))
+                                                highlight_color=self.highlight_color, one_dimension=one_dimension))
             else:
                 table.add_row(*self.render_list(self._array, highlight_color=self.highlight_color))
 
         elif list_type == list_2d:
-            row, col = len(self._array), len(self._array[0])
+            bkp_getter = self.__getitem__
+            # global status
+            self.status['override_get'] = False
+            row, col = len(display), len(display[0])
             if show_index:
                 for i in range(col):
                     table.add_column(str(i))
             for i in range(row):
-                table.add_row(*self.render_list(self._array[i], highlight_color=self.highlight_color))
+                if highlight:
+                    table.add_row(*self.render_list(display[i], highlight_color=self.highlight_color,
+                                                    highlight=[highlight[0], highlight[0]] if i == highlight[1] else [
+                                                        -1, -1]))
+                else:
+                    table.add_row(*self.render_list(display[i], highlight_color=self.highlight_color))
+
+            self.status['override_get'] = True
 
         console = Console()
         console.print(table)
         time.sleep(self.sleep_time)
 
-    def show_additional_data(self, string, data):
-        self.backup_getter = self.__getitem__
-        self.__getitem__ = super().__getitem__
-        print(string, eval(data))
-        self.__getitem__ = self.backup_getter
+    def show_additional_data(self, string, data='', end=''):
+        # global status
+        self.status['override_get'] = False
+        if len(data) == 0:
+            print(string, end)
+        else:
+            data = data.replace('#', 'self._')
+            # print(data)
+            print(string, eval(data), end)
+        self.status['override_get'] = True
