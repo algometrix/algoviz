@@ -1,1 +1,1 @@
-from algoviz import VizList
+from algoviz import vizlist
