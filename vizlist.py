@@ -1,6 +1,6 @@
 from rich.console import Console
 from rich.table import Table
-from rich import print
+# from rich import print
 import time
 
 
@@ -10,10 +10,15 @@ class VizList(list):
     def __init__(self, array, title_name='Array', sleep_time=0, highlight_color='red', show_init=True, parent=None,
                  override_get=True):
         # print('New : ', title_name, array)
+        list_1d, list_2d = 1, 2
+        self.array_type = list_1d
         if len(array) > 0 and isinstance(array[0], list):
+            self.array_type = list_2d
             self._array = []
             for i in range(len(array)):
-                self._array.append(VizList(array[i], show_init=False, parent=self))
+                self._array.append(
+                    VizList(array[i], show_init=False, parent=self, title_name=f'{title_name}-'+str(i), override_get=False)
+                    )
         else:
             self._array = array
 
@@ -25,6 +30,7 @@ class VizList(list):
         self.highlight_color = highlight_color
         self.parent_list = False
         self.last_index_get = None
+        self.override_get = override_get
         if show_init: self.show_list(table_name=self.table_name + ' Init')
 
     def __add__(self, args):
@@ -58,7 +64,7 @@ class VizList(list):
         # print('Get Item : {}'.format(args))
         # global status
         res = self._array.__getitem__(*args, **kwargs)
-        if not self.status['override_get']:
+        if not self.status['override_get']:# or not self.override_get:
             return res
         # print('\nList get ', self.table_name, self._array)
         # If result in not a list
@@ -67,7 +73,7 @@ class VizList(list):
             # If get is not for a 2D List
             # print('D : ', self.parent_list)
             if not self.parent_list:
-                self.show_list(highlight=[index, index], table_name=self.table_name)
+                self.show_list(highlight=[index, index], table_name=f'{self.table_name} [{index}]')
             else:
                 # print('I : ', self.last_index_get, index)
                 self.show_list(highlight=[index, self.last_index_get], table_name=self.parent.table_name)
@@ -81,7 +87,7 @@ class VizList(list):
                 start = args[0].start
                 stop = args[0].stop
                 # print(res, args, left, stop)
-                self.show_list(table_name=self.table_name, show_index=False, highlight=[start, stop], is_splice=True)
+                self.show_list(table_name=f'{self.table_name} [{start}:{stop}]', show_index=False, highlight=[start, stop], is_splice=True)
                 return VizList(res, show_init=False)
             else:
                 # TODO : Broken 2D Handling
@@ -258,6 +264,7 @@ class VizList(list):
 
     def show_additional_data(self, string, data='', end=''):
         # global status
+        #print('A')
         self.status['override_get'] = False
         if len(data) == 0:
             print(string, end)
@@ -266,3 +273,4 @@ class VizList(list):
             # print(data)
             print(string, eval(data), end)
         self.status['override_get'] = True
+        #print('E')

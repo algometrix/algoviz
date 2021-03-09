@@ -13,6 +13,6 @@ def countSubstrings(s):
 
 
 if __name__ == '__main__':
-    s = 'aabac'
+    s = 'aabaa'
     res = countSubstrings(s)
     print('Output : {}'.format(res))
