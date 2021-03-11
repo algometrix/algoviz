@@ -43,6 +43,7 @@ class VizList(list):
         if self.array_type == ListType.TWO_D_LIST:
             for i in range(len(array)):
                 array[i] = VizList(array[i], sleep_time=sleep_time, parent=self, show_init=False,
+                                   get_highlight_color=get_highlight_color, set_highlight_color=set_highlight_color,
                                    row_index=[self.row_index[i]] if self.row_index else None)
 
         self._array = array
