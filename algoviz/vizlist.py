@@ -79,16 +79,13 @@ class VizList(list):
         table_name = table_name or self.table_name
         self.table = Table(title=table_name, show_header=show_header)
         self.debug_print(f'Printing {self.array_type}')
+        # Add blank col to fit in row index values
+        if self.row_index: self.table.add_column(' ')
         if self.array_type == ListType.ONE_D_LIST:
-            # Add blank col to fit in row index values
-            if self.row_index: self.table.add_column(' ')
             for i in self.col_index or range(len(self._array)):
                 self.table.add_column(f'{i}')
             self.table.add_row(*self.render_list(self._array))
         elif self.array_type == ListType.TWO_D_LIST:
-            # Add blank col to fit in row index values
-            if self.row_index: self.table.add_column(' ')
-
             # Add all the column index values if there are provides. Otherwise just use range
             for i in self.col_index or range(len(self._array[0])):
                 self.table.add_column(f'{i}')
@@ -118,6 +115,9 @@ class VizList(list):
     def clear_highighlight_data(self):
         self.set_highlight_tracker = []
         self.get_highlight_tracker = []
+        for i in self._array:
+            if isinstance(i, VizList):
+                i.clear_highighlight_data()
 
     def __getitem__(self, *args, **kwargs):
         res = self._array.__getitem__(*args, **kwargs)
@@ -126,10 +126,11 @@ class VizList(list):
         if not self.status['override_get']:
             return res
         else:
-            if isinstance(args[0], slice):
-                self.get_highlight_tracker.append([args[0].start, args[0].stop])
-            else:
-                self.get_highlight_tracker.append([args[0], args[0] + 1])
+            if self.array_type == ListType.ONE_D_LIST:
+                if isinstance(args[0], slice):
+                    self.get_highlight_tracker.append([args[0].start, args[0].stop])
+                else:
+                    self.get_highlight_tracker.append([args[0], args[0] + 1])
         return res
 
     def __setitem__(self, *args, **kwargs):
