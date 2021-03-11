@@ -5,7 +5,7 @@ import copy
 
 from enum import Enum
 
-DEBUG = True
+DEBUG = False
 
 
 class ListType(Enum):
@@ -42,18 +42,20 @@ class VizList(list):
         self.table = None
         if self.array_type == ListType.TWO_D_LIST:
             for i in range(len(array)):
-                array[i] = VizList(array[i], sleep_time=sleep_time, parent=self, show_init=False)
+                array[i] = VizList(array[i], sleep_time=sleep_time, parent=self, show_init=False,
+                                   row_index=[self.row_index[i]] if self.row_index else None)
 
         self._array = array
         self._ = self._array
         if show_init:
             self.show_list(table_name=self.table_name + ' Init')
 
-    def render_list(self, array):
+    def render_list(self, array=None):
+        array = array or self._array
         self.debug_print(f'Array : {array}')
         self.debug_print(f'Highlight Data : {self.get_highlight_tracker} | {self.set_highlight_tracker}')
         if self.array_type == ListType.ONE_D_LIST:
-            rendered_list = []
+            rendered_list = [f'{self.row_index[0]}'] if self.row_index else []
             for index, val in enumerate(self._array):
                 for start, end in self.set_highlight_tracker:
                     if start <= index < end:
@@ -72,17 +74,28 @@ class VizList(list):
         self.clear_highighlight_data()
         return tuple(rendered_list)
 
-    def show_list(self, table_name=None):
+    def show_list(self, table_name=None, array=None, show_header=True):
         self.status['override_get'] = False
         table_name = table_name or self.table_name
-        self.table = Table(tuple(self.col_index), title=table_name) if self.col_index else Table(title=table_name)
+        self.table = Table(title=table_name, show_header=show_header)
         self.debug_print(f'Printing {self.array_type}')
         if self.array_type == ListType.ONE_D_LIST:
-            for i in range(len(self._array)):
+            # Add blank col to fit in row index values
+            if self.row_index: self.table.add_column(' ')
+            for i in self.col_index or range(len(self._array)):
                 self.table.add_column(f'{i}')
             self.table.add_row(*self.render_list(self._array))
         elif self.array_type == ListType.TWO_D_LIST:
-            pass
+            # Add blank col to fit in row index values
+            if self.row_index: self.table.add_column(' ')
+
+            # Add all the column index values if there are provides. Otherwise just use range
+            for i in self.col_index or range(len(self._array[0])):
+                self.table.add_column(f'{i}')
+
+            # Go through each sub array object and generate row for each sub array
+            for sub_array in self._array:
+                self.table.add_row(*sub_array.render_list())
 
         console = Console()
         console.print(self.table)
@@ -120,7 +133,7 @@ class VizList(list):
         return res
 
     def __setitem__(self, *args, **kwargs):
-        res = self._array.__setitem__(*args, **kwargs)
+        self._array.__setitem__(*args, **kwargs)
         if self.status['override_get']:
             self.debug_print(f'Set Item Called : {args}')
             self.debug_print(f'Highlights : f{self.get_highlight_tracker}')
@@ -129,9 +142,12 @@ class VizList(list):
             else:
                 self.set_highlight_tracker.append([args[0], args[0] + 1])
 
-            self.show_list()
+            curr = self
+            # Access the parent of the updated array
+            while curr.parent is not None:
+                curr = curr.parent
 
-        return res
+            curr.show_list()
 
     def __setslice__(self, *args, **kwargs):
         return self._array.__setslice__(*args, **kwargs)
