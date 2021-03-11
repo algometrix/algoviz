@@ -1,20 +1,21 @@
-import setuptools
+import setuptools, os
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+if os.path.exists("README.md"):
+    with open("README.md", "r", encoding="utf-8") as fh:
+        long_description = fh.read()
 
 setuptools.setup(
     name='algoviz',  # How you named your package folder (MyLib)
     packages=['algoviz'],  # Chose the same as "name"
-    version='0.1.7',  # Start with a small number and increase it with every change you make
+    version='0.2.3',  # Start with a small number and increase it with every change you make
     license='MIT',  # Chose a license from here: https://help.github.com/articles/licensing-a-repository
     description='Generates visualizations for arrays',  # Give a short description about your library
     author='Ashish Nagar',  # Type in your name
     author_email='ashishnagar31@gmail.com',  # Type in your E-Mail
     url='https://github.com/algometrix/algoviz',  # Provide either the link to your github or to your website
-    download_url='https://github.com/algometrix/algoviz/archive/v_0.2.1.tar.gz',  # I explain this later on
+    download_url='https://github.com/algometrix/algoviz/archive/v_0.2.2.tar.gz',  # I explain this later on
     keywords=['Visualization', 'Algorithms'],  # Keywords that define your package best
-    long_description=long_description,
+    long_description=long_description or "Description Missing.",
     long_description_content_type="text/markdown",
     install_requires=[  # I get to this in a second
         'rich',
