@@ -16,7 +16,7 @@ class ListType(Enum):
 class VizList(list):
     status = {'override_get': True}
 
-    def __init__(self, array, title_name='Array', sleep_time=0, get_highlight_color='red', set_highlight_color='blue',
+    def __init__(self, array, title_name='Array', sleep_time=0, get_highlight_color='blue', set_highlight_color='red',
                  show_init=True, parent=None,
                  override_get=True, row_index=None, column_index=None, show_header=True, auto_print_on_set=True):
         if isinstance(array[0], list):
