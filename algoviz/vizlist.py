@@ -18,7 +18,7 @@ class VizList(list):
 
     def __init__(self, array, title_name='Array', sleep_time=0, get_highlight_color='red', set_highlight_color='blue',
                  show_init=True, parent=None,
-                 override_get=True, row_index=None, column_index=None, show_header=True, show_on_get=False):
+                 override_get=True, row_index=None, column_index=None, show_header=True, auto_print_on_set=True):
         if isinstance(array[0], list):
             self.array_type = ListType.TWO_D_LIST
         else:
@@ -40,7 +40,7 @@ class VizList(list):
         self.last_index_get = None
         self.override_get = override_get
         self.table = None
-        self.show_on_get = show_on_get
+        self.auto_print_on_set = auto_print_on_set
         if self.array_type == ListType.TWO_D_LIST:
             for i in range(len(array)):
                 array[i] = VizList(array[i], sleep_time=sleep_time, parent=self, show_init=False,
@@ -67,6 +67,7 @@ class VizList(list):
                         rendered_item = f'[{self.set_highlight_color}]{val}[/{self.set_highlight_color}]'
                         break
                 else:
+                    self.debug_print(f'Get Highlight Tracker : {self.get_highlight_tracker}')
                     for start, end in self.get_highlight_tracker:
                         if start <= index < end:
                             rendered_item = f'[{self.get_highlight_color}]{val}[/{self.get_highlight_color}]'
@@ -139,7 +140,8 @@ class VizList(list):
         else:
             if self.array_type == ListType.ONE_D_LIST:
                 if isinstance(args[0], slice):
-                    self.get_highlight_tracker.append([args[0].start, args[0].stop])
+                    if not (args[0].start is None or args[2] is None):
+                        self.get_highlight_tracker.append([args[0].start, args[0].stop])
                 else:
                     self.get_highlight_tracker.append([args[0], args[0] + 1])
         return res
@@ -163,7 +165,8 @@ class VizList(list):
             while curr.parent is not None:
                 curr = curr.parent
 
-            curr.show_list()
+            if self.auto_print_on_set:
+                curr.show_list()
 
     def __setslice__(self, *args, **kwargs):
         return self._array.__setslice__(*args, **kwargs)
