@@ -18,7 +18,7 @@ class VizList(list):
 
     def __init__(self, array, title_name='Array', sleep_time=0, get_highlight_color='red', set_highlight_color='blue',
                  show_init=True, parent=None,
-                 override_get=True, row_index=None, column_index=None, show_header=True):
+                 override_get=True, row_index=None, column_index=None, show_header=True, show_on_get=False):
         if isinstance(array[0], list):
             self.array_type = ListType.TWO_D_LIST
         else:
@@ -40,6 +40,7 @@ class VizList(list):
         self.last_index_get = None
         self.override_get = override_get
         self.table = None
+        self.show_on_get = show_on_get
         if self.array_type == ListType.TWO_D_LIST:
             for i in range(len(array)):
                 array[i] = VizList(array[i], sleep_time=sleep_time, parent=self, show_init=False,
@@ -51,12 +52,15 @@ class VizList(list):
         if show_init:
             self.show_list(table_name=self.table_name + ' Init')
 
-    def render_list(self, array=None):
+    def render_list(self, array=None, extra_info=None):
         array = array or self._array
         self.debug_print(f'Array : {array}')
         self.debug_print(f'Highlight Data : {self.get_highlight_tracker} | {self.set_highlight_tracker}')
         if self.array_type == ListType.ONE_D_LIST:
-            rendered_list = [f'{self.row_index[0]}'] if self.row_index else []
+            if extra_info is not None:
+                rendered_list = [f'{self.row_index[0]} [{extra_info}]'] if self.row_index else []
+            else:
+                rendered_list = [f'{self.row_index[0]}'] if self.row_index else []
             for index, val in enumerate(self._array):
                 for start, end in self.set_highlight_tracker:
                     if start <= index < end:
@@ -75,7 +79,7 @@ class VizList(list):
         self.clear_highighlight_data()
         return tuple(rendered_list)
 
-    def show_list(self, table_name=None, array=None, show_header=True):
+    def show_list(self, table_name=None, show_header=True):
         self.status['override_get'] = False
         table_name = table_name or self.table_name
         self.table = Table(title=table_name, show_header=show_header)
@@ -83,17 +87,23 @@ class VizList(list):
         # Add blank col to fit in row index values
         if self.row_index: self.table.add_column(' ')
         if self.array_type == ListType.ONE_D_LIST:
-            for i in self.col_index or range(len(self._array)):
-                self.table.add_column(f'{i}')
+            for index, i in enumerate(self.col_index or range(len(self._array))):
+                if self.col_index:
+                    self.table.add_column(f'{i} [{index}]')
+                else:
+                    self.table.add_column(f'{i}')
             self.table.add_row(*self.render_list(self._array))
         elif self.array_type == ListType.TWO_D_LIST:
             # Add all the column index values if there are provides. Otherwise just use range
-            for i in self.col_index or range(len(self._array[0])):
-                self.table.add_column(f'{i}')
+            for index, i in enumerate(self.col_index or range(len(self._array[0]))):
+                if self.col_index:
+                    self.table.add_column(f'{i} [{index}]')
+                else:
+                    self.table.add_column(f'{i}')
 
             # Go through each sub array object and generate row for each sub array
-            for sub_array in self._array:
-                self.table.add_row(*sub_array.render_list())
+            for index, sub_array in enumerate(self._array):
+                self.table.add_row(*sub_array.render_list(extra_info=index))
 
         console = Console()
         console.print(self.table)
@@ -133,6 +143,10 @@ class VizList(list):
                 else:
                     self.get_highlight_tracker.append([args[0], args[0] + 1])
         return res
+
+    def show_table(self):
+        self.show_list(show_header=True, table_name=self.table_name)
+        self.clear_highighlight_data()
 
     def __setitem__(self, *args, **kwargs):
         self._array.__setitem__(*args, **kwargs)
