@@ -1,5 +1,6 @@
 import setuptools, os
 
+long_description = None
 if os.path.exists("README.md"):
     with open("README.md", "r", encoding="utf-8") as fh:
         long_description = fh.read()
@@ -13,7 +14,7 @@ setuptools.setup(
     author='Ashish Nagar',  # Type in your name
     author_email='ashishnagar31@gmail.com',  # Type in your E-Mail
     url='https://github.com/algometrix/algoviz',  # Provide either the link to your github or to your website
-    download_url='https://github.com/algometrix/algoviz/archive/v_0.2.2.tar.gz',  # I explain this later on
+    download_url='https://github.com/algometrix/algoviz/archive/v_0.2.3.tar.gz',  # I explain this later on
     keywords=['Visualization', 'Algorithms'],  # Keywords that define your package best
     long_description=long_description or "Description Missing.",
     long_description_content_type="text/markdown",
