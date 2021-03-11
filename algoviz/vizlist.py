@@ -18,7 +18,8 @@ class VizList(list):
 
     def __init__(self, array, title_name='Array', sleep_time=0, get_highlight_color='blue', set_highlight_color='red',
                  show_init=True, parent=None,
-                 override_get=True, row_index=None, column_index=None, show_header=True, auto_print_on_set=True, force_1d = False):
+                 override_get=True, row_index=None, column_index=None, show_header=True, auto_print_on_set=True,
+                 force_1d=False):
         if isinstance(array[0], list):
             self.array_type = ListType.TWO_D_LIST
         else:
@@ -162,7 +163,7 @@ class VizList(list):
         val = args[1]
         self._array.__setitem__(*args, **kwargs)
         if self.status['override_get']:
-            self.status['override_get'] = False
+            self.disable_override()
             self.debug_print(f'Set Item Called : {args}')
             self.debug_print(f'Highlights : f{self.get_highlight_tracker}')
             if isinstance(args[0], slice):
@@ -170,7 +171,9 @@ class VizList(list):
             else:
                 if isinstance(val, list):
                     index = args[0]
-                    self[index] = VizList(val, show_init=False)
+                    self[index] = VizList(val, sleep_time=self.sleep_time, parent=self, show_init=False,
+                                          get_highlight_color=self.get_highlight_color,
+                                          set_highlight_color=self.set_highlight_color)
                 self.set_highlight_tracker.append([args[0], args[0] + 1])
 
             curr = self
@@ -181,8 +184,16 @@ class VizList(list):
             if self.auto_print_on_set:
                 curr.show_list()
 
-            self.status['override_get'] = True
+            self.enable_override()
 
+    def disable_override(self):
+        self.status['override_get'] = False
+
+    def enable_override(self):
+        self.status['override_get'] = True
+
+    def toggle_override(self):
+        self.status['override_get'] = not self.status['override_get']
 
     def __setslice__(self, *args, **kwargs):
         return self._array.__setslice__(*args, **kwargs)
