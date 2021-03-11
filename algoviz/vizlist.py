@@ -18,7 +18,7 @@ class VizList(list):
 
     def __init__(self, array, title_name='Array', sleep_time=0, get_highlight_color='blue', set_highlight_color='red',
                  show_init=True, parent=None,
-                 override_get=True, row_index=None, column_index=None, show_header=True, auto_print_on_set=True):
+                 override_get=True, row_index=None, column_index=None, show_header=True, auto_print_on_set=True, force_1d = False):
         if isinstance(array[0], list):
             self.array_type = ListType.TWO_D_LIST
         else:
@@ -40,6 +40,7 @@ class VizList(list):
         self.last_index_get = None
         self.override_get = override_get
         self.table = None
+        self.force_1d = force_1d
         self.auto_print_on_set = auto_print_on_set
         if self.array_type == ListType.TWO_D_LIST:
             for i in range(len(array)):
@@ -104,7 +105,10 @@ class VizList(list):
 
             # Go through each sub array object and generate row for each sub array
             for index, sub_array in enumerate(self._array):
-                self.table.add_row(*sub_array.render_list(extra_info=index))
+                if isinstance(sub_array, VizList):
+                    self.table.add_row(*sub_array.render_list(extra_info=index))
+                else:
+                    self.table.add_row(str(sub_array))
 
         console = Console()
         console.print(self.table)
@@ -140,8 +144,12 @@ class VizList(list):
         else:
             if self.array_type == ListType.ONE_D_LIST:
                 if isinstance(args[0], slice):
-                    if not (args[0].start is None or args[2] is None):
+                    if not (args[0].start is None or args[0].stop is None):
                         self.get_highlight_tracker.append([args[0].start, args[0].stop])
+                    elif args[0].start is not None and args[0].stop is None:
+                        self.get_highlight_tracker.append([args[0].start, len(self._array)])
+                    elif args[0].start is None and args[0].stop is not None:
+                        self.get_highlight_tracker.append([0, args[0].stop])
                 else:
                     self.get_highlight_tracker.append([args[0], args[0] + 1])
         return res
@@ -151,13 +159,18 @@ class VizList(list):
         self.clear_highighlight_data()
 
     def __setitem__(self, *args, **kwargs):
+        val = args[1]
         self._array.__setitem__(*args, **kwargs)
         if self.status['override_get']:
+            self.status['override_get'] = False
             self.debug_print(f'Set Item Called : {args}')
             self.debug_print(f'Highlights : f{self.get_highlight_tracker}')
             if isinstance(args[0], slice):
                 self.set_highlight_tracker.append([args[0].start, args[0].stop])
             else:
+                if isinstance(val, list):
+                    index = args[0]
+                    self[index] = VizList(val, show_init=False)
                 self.set_highlight_tracker.append([args[0], args[0] + 1])
 
             curr = self
@@ -167,6 +180,9 @@ class VizList(list):
 
             if self.auto_print_on_set:
                 curr.show_list()
+
+            self.status['override_get'] = True
+
 
     def __setslice__(self, *args, **kwargs):
         return self._array.__setslice__(*args, **kwargs)
