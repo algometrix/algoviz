@@ -15,12 +15,12 @@ from typing import Any
 from rich.console import RenderableType
 from rich.table import Table
 
-from algoviz.core import VizBase, VizConfig, paint
+from algoviz.core import VizBase, VizConfig, glyph, paint
 
 __all__ = ["VizStack"]
 
-_TOP_LABEL = "← top"
-_POPPED_LABEL = "✗ popped"
+_TOP_LABEL = glyph("←", "<-") + " top"
+_POPPED_LABEL = glyph("✗", "x") + " popped"
 
 
 class VizStack(VizBase):

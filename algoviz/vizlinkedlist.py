@@ -21,12 +21,12 @@ from typing import Any
 from rich.console import RenderableType
 from rich.table import Table
 
-from algoviz.core import VizBase, VizConfig, paint
+from algoviz.core import VizBase, VizConfig, glyph, paint
 
 __all__ = ["ListNode", "VizLinkedList"]
 
-_CYCLE_MARK = "↺"  # back-edge marker: "-> ↺[index]"
-_POINTER_MARK = "↑"  # pointer label marker: "↑ slow"
+_CYCLE_MARK = glyph("↺", "@")  # back-edge marker: "-> ↺[index]"
+_POINTER_MARK = glyph("↑", "^")  # pointer label marker: "↑ slow"
 
 
 class ListNode:

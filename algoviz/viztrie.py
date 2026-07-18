@@ -30,11 +30,11 @@ from typing import Any
 from rich.console import RenderableType
 from rich.tree import Tree
 
-from algoviz.core import VizBase, VizConfig, paint
+from algoviz.core import VizBase, VizConfig, glyph, paint
 
 __all__ = ["TrieNode", "VizTrie"]
 
-_WORD_MARK = "•"
+_WORD_MARK = glyph("•", "*")
 
 
 class TrieNode:

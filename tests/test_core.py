@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import dataclasses
+import sys
 import threading
 
 import pytest
+from algoviz import vizlinkedlist, vizstack, viztrie
 from algoviz.core import (
     HighlightTracker,
     VizConfig,
+    glyph,
     paint,
     substitute_placeholder,
     suspend_tracking,
@@ -181,3 +184,63 @@ class TestSubstitutePlaceholder:
     def test_respects_escaped_quotes(self):
         expr = r"'it\'s # here' + #[1]"
         assert substitute_placeholder(expr) == r"'it\'s # here' + _[1]"
+
+
+class _Stream:
+    """A stand-in for sys.stdout with a controllable encoding."""
+
+    def __init__(self, encoding):
+        self.encoding = encoding
+
+
+class TestGlyphFallback:
+    """Legacy Windows codepages cannot encode the markers we draw with."""
+
+    def test_returns_preferred_when_encodable(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _Stream("utf-8"))
+        assert glyph("\u2190", "<-") == "\u2190"
+
+    def test_falls_back_on_a_legacy_codepage(self, monkeypatch):
+        """cp1252 has no arrows; writing one would abort the program."""
+        monkeypatch.setattr(sys, "stdout", _Stream("cp1252"))
+        assert glyph("\u2190", "<-") == "<-"
+
+    @pytest.mark.parametrize(
+        ("preferred", "fallback"),
+        [("\u21ba", "@"), ("\u2022", "*"), ("\u2717", "x"), ("\u2191", "^")],
+    )
+    def test_every_marker_falls_back_on_ascii(
+        self, preferred, fallback, monkeypatch
+    ):
+        monkeypatch.setattr(sys, "stdout", _Stream("ascii"))
+        assert glyph(preferred, fallback) == fallback
+
+    def test_falls_back_on_an_unknown_encoding(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _Stream("not-a-codec"))
+        assert glyph("\u2190", "<-") == "<-"
+
+    def test_defaults_to_utf8_when_encoding_is_absent(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _Stream(None))
+        assert glyph("\u2190", "<-") == "\u2190"
+
+    def test_ascii_input_is_never_altered(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _Stream("cp1252"))
+        assert glyph("top", "top") == "top"
+
+
+class TestMarkersSurviveLegacyTerminals:
+    """Every marker the library draws must be safe on a cp1252 terminal."""
+
+    def test_markers_encode_under_cp1252(self):
+        markers = [
+            vizlinkedlist._CYCLE_MARK,
+            vizlinkedlist._POINTER_MARK,
+            vizstack._TOP_LABEL,
+            vizstack._POPPED_LABEL,
+            viztrie._WORD_MARK,
+        ]
+        for marker in markers:
+            resolved = glyph(marker, "")
+            assert resolved == marker or resolved == "", (
+                "a marker must resolve through glyph()"
+            )

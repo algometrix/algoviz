@@ -16,6 +16,7 @@ Three concerns live here:
 from __future__ import annotations
 
 import contextvars
+import sys
 import time
 from collections.abc import Hashable, Iterator
 from contextlib import contextmanager
@@ -30,6 +31,7 @@ __all__ = [
     "VizBase",
     "VizConfig",
     "console",
+    "glyph",
     "suspend_tracking",
     "tracking_suspended",
 ]
@@ -137,6 +139,27 @@ class HighlightTracker:
         if key in self._gets:
             return config.get_color
         return None
+
+
+def glyph(preferred: str, fallback: str) -> str:
+    """Return `preferred` if the output stream can encode it, else `fallback`.
+
+    Windows consoles default to a legacy codepage such as cp1252 when
+    stdout is a pipe, and cp1252 cannot represent the arrows and marks
+    used to label stack tops, list cycles, and end-of-word nodes.
+    Writing one there raises UnicodeEncodeError and kills the program,
+    so a structure that renders fine interactively would crash the
+    moment its output was redirected to a file.
+
+    Resolved against the real stdout rather than the current console,
+    because that is what determines whether the write survives.
+    """
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        preferred.encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        return fallback
+    return preferred
 
 
 def paint(value: Any, style: str | None) -> str:
