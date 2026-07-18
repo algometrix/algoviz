@@ -135,6 +135,14 @@ for char in 'cat':               # your insert, not the library's
 node.is_word = True
 ```
 
+> **Sizing note for `VizTrie`.** Keep it to roughly a dozen short words. The
+> render is one line per node, and a trie's node count grows with the total
+> number of *characters*, not the number of words, so 20 words of 5 to 8
+> letters is already about 62 nodes and fills a terminal in a single frame.
+> The other structures are far less dense: 20 values in a `VizHeap` is 20
+> nodes, and in a `VizList` it is 3 lines. Nothing breaks past that point, it
+> just stops being readable.
+
 ## Demo gallery
 
 Twenty-six runnable solutions live in [`demo/`](demo/). Every one is executed

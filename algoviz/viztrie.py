@@ -12,6 +12,14 @@ and mutate the trie by hand, calling `visit()` to drive the animation one
 node at a time -- the same shape `VizTree` and `VizLinkedList` use. The
 built-in `insert`/`search`/`delete` are there for when the trie is a tool
 in some larger problem, not the exercise itself.
+
+Scale: keep it to roughly a dozen short words. The render is one line per
+node, and a trie's node count grows with the total number of characters
+rather than the number of words, so 20 words of 5 to 8 letters is already
+about 62 nodes and overflows a normal terminal in a single frame. That is
+far denser than the other structures here, where 20 values means 20 nodes
+or fewer. Nothing breaks past that point, it just stops being legible, so
+prefer a small illustrative word set over a realistic dictionary.
 """
 
 from __future__ import annotations
