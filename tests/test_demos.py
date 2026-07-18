@@ -48,7 +48,7 @@ EXPECTED = {
     "reverse_linked_list.py": "Output : [5, 4, 3, 2, 1]",
     # Trees and tries
     "binary_tree_level_order.py": "Output : [[3], [9, 20], [15, 7]]",
-    "implement_trie.py": "Output : True",
+    "implement_trie.py": "Output : [True, False, True]",
     "validate_bst.py": "Output : False",
     "word_break.py": "Output : True",
     # Union-find

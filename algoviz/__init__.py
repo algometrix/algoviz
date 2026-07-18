@@ -27,7 +27,7 @@ from algoviz.vizlist import VizList
 from algoviz.vizqueue import VizDeque, VizQueue
 from algoviz.vizstack import VizStack
 from algoviz.viztree import TreeNode, VizTree
-from algoviz.viztrie import VizTrie
+from algoviz.viztrie import TrieNode, VizTrie
 from algoviz.vizunionfind import VizUnionFind
 
 __version__ = "0.3.0"
@@ -36,6 +36,7 @@ __all__ = [
     "ListNode",
     "Mark",
     "TreeNode",
+    "TrieNode",
     "VizConfig",
     "VizCounter",
     "VizDeque",

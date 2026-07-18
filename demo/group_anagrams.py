@@ -8,7 +8,7 @@ def group_anagrams(words: list[str]) -> list[list[str]]:
     groups = VizDict(title_name="signature -> words")
     for word in words:
         signature = "".join(sorted(word))
-        groups[signature] = [*groups.get(signature, []), word]
+        groups.setdefault(signature, []).append(word)
     return list(groups.values())
 
 

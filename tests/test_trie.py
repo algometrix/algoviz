@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from algoviz.core import VizConfig
-from algoviz.viztrie import VizTrie
+from algoviz.viztrie import TrieNode, VizTrie
 
 QUIET = VizConfig(auto_print=False, show_init=False)
 
@@ -186,3 +186,75 @@ class TestDelete:
 
         assert sut.starts_with("ca") is True
         assert sut.search("car") is True
+
+
+class TestBuildYourOwnTraversal:
+    """The API a student needs when implementing the trie themselves."""
+
+    def test_root_node_is_exposed(self):
+        trie = VizTrie(config=QUIET)
+        assert isinstance(trie.root_node, TrieNode)
+
+    def test_root_holds_no_character(self):
+        """A word's first letter is a key in the root's children."""
+        trie = VizTrie(["ab"], config=QUIET)
+        assert set(trie.root_node.children) == {"a"}
+
+    def test_node_exposes_children_and_is_word(self):
+        trie = VizTrie(["at"], config=QUIET)
+        first = trie.root_node.children["a"]
+        assert first.is_word is False
+        assert first.children["t"].is_word is True
+
+    def test_hand_built_insert_is_visible_to_the_library(self):
+        """A student's own insert must be a real insert, not a drawing."""
+        trie = VizTrie(config=QUIET)
+        node = trie.root_node
+        for char in "cat":
+            node.children[char] = TrieNode()
+            node = node.children[char]
+        node.is_word = True
+
+        assert trie.words() == ["cat"]
+        assert trie.search("cat") is True
+        assert trie.starts_with("ca") is True
+
+    def test_len_tracks_hand_built_words(self):
+        """A cached count would drift the moment is_word is set by hand."""
+        trie = VizTrie(["dog"], config=QUIET)
+        assert len(trie) == 1
+        node = trie.root_node.children["d"]
+        node.is_word = True  # 'd' is now a word too
+        assert len(trie) == 2
+
+    def test_visit_marks_a_read(self):
+        trie = VizTrie(["ab"], config=QUIET)
+        node = trie.root_node.children["a"]
+        trie.visit(node)
+        assert trie.highlights.style_for(id(node), trie.config) == "blue"
+
+    def test_visit_marks_a_write(self):
+        trie = VizTrie(["ab"], config=QUIET)
+        node = trie.root_node.children["a"]
+        trie.visit(node, writing=True)
+        assert trie.highlights.style_for(id(node), trie.config) == "red"
+
+    def test_visit_none_is_a_no_op(self):
+        """Safe to call unconditionally when a child may be missing."""
+        trie = VizTrie(["ab"], config=QUIET)
+        trie.visit(None)
+        assert not trie.highlights.gets
+
+    def test_visits_accumulate_into_a_path(self):
+        trie = VizTrie(["ab"], config=QUIET)
+        first = trie.root_node.children["a"]
+        second = first.children["b"]
+        trie.visit(first)
+        trie.visit(second)
+        assert trie.highlights.gets == frozenset({id(first), id(second)})
+
+    def test_show_clears_the_walked_path(self):
+        trie = VizTrie(["ab"], config=QUIET)
+        trie.visit(trie.root_node.children["a"])
+        trie.show()
+        assert not trie.highlights.gets

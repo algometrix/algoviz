@@ -22,6 +22,10 @@ class MinStack:
         self._values.pop()
         self._mins.pop()
 
+    def top(self) -> int:
+        """The value most recently pushed."""
+        return self._values.peek()
+
     def get_min(self) -> int:
         """The smallest value currently on the stack."""
         return self._mins.peek()

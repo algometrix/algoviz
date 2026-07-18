@@ -111,10 +111,39 @@ VizGrid(['110', '011'])       # terrain plus a visited/queued overlay
 `ListNode` and `TreeNode` use the same `.val` / `.next` / `.left` / `.right`
 shape LeetCode uses, so existing solutions paste in unchanged.
 
+### Implementing it yourself
+
+When the structure *is* the exercise, the library gets out of the way. Each of
+these hands you the real nodes so your own code does the walking, and a hook to
+light up the step you are on:
+
+| Structure | Nodes | Drive the animation with |
+| :--- | :--- | :--- |
+| `VizTree` | `root_node`, `TreeNode` | `visit(node)` |
+| `VizTrie` | `root_node`, `TrieNode` | `visit(node, writing=...)` |
+| `VizLinkedList` | `head`, `nodes()`, `ListNode` | `set_pointer(name, node)` |
+
+```python
+from algoviz import TrieNode, VizTrie
+
+viz = VizTrie(title_name='Trie')
+node = viz.root_node
+for char in 'cat':               # your insert, not the library's
+    node.children.setdefault(char, TrieNode())
+    node = node.children[char]
+    viz.visit(node, writing=True)
+node.is_word = True
+```
+
 ## Demo gallery
 
 Twenty-six runnable solutions live in [`demo/`](demo/). Every one is executed
 and checked against the correct answer in CI, so none of them can rot.
+
+Each demo writes its own algorithm. Where the library offers a shortcut that
+would *be* the answer, the demo deliberately does not call it: the level-order
+demo drives its own queue, the top-K demo maintains its own bounded heap, and
+the trie demo builds its own nodes.
 
 ```bash
 python demo/num_islands.py
@@ -146,7 +175,7 @@ python demo/num_islands.py
 | Demo | Problem | Idea |
 | :--- | :--- | :--- |
 | [`kth_largest.py`](demo/kth_largest.py) | [215](https://leetcode.com/problems/kth-largest-element-in-an-array/) Kth Largest | A bounded min-heap |
-| [`top_k_frequent.py`](demo/top_k_frequent.py) | [347](https://leetcode.com/problems/top-k-frequent-elements/) Top K Frequent | Counter plus heap |
+| [`top_k_frequent.py`](demo/top_k_frequent.py) | [347](https://leetcode.com/problems/top-k-frequent-elements/) Top K Frequent | A heap capped at k |
 | [`two_sum.py`](demo/two_sum.py) | [1](https://leetcode.com/problems/two-sum/) Two Sum | The hash-map one-pass |
 | [`group_anagrams.py`](demo/group_anagrams.py) | [49](https://leetcode.com/problems/group-anagrams/) Group Anagrams | Bucket by sorted letters |
 | [`longest_consecutive.py`](demo/longest_consecutive.py) | [128](https://leetcode.com/problems/longest-consecutive-sequence/) Longest Consecutive | A set, not a sort |
@@ -159,9 +188,9 @@ python demo/num_islands.py
 | [`flood_fill.py`](demo/flood_fill.py) | [733](https://leetcode.com/problems/flood-fill/) Flood Fill | Recolour a connected region |
 | [`reverse_linked_list.py`](demo/reverse_linked_list.py) | [206](https://leetcode.com/problems/reverse-linked-list/) Reverse Linked List | Pointer surgery, one node at a time |
 | [`linked_list_cycle.py`](demo/linked_list_cycle.py) | [141](https://leetcode.com/problems/linked-list-cycle/) Linked List Cycle | Floyd's tortoise and hare |
-| [`binary_tree_level_order.py`](demo/binary_tree_level_order.py) | [102](https://leetcode.com/problems/binary-tree-level-order-traversal/) Level Order | BFS by level |
+| [`binary_tree_level_order.py`](demo/binary_tree_level_order.py) | [102](https://leetcode.com/problems/binary-tree-level-order-traversal/) Level Order | Drive the BFS queue yourself |
 | [`validate_bst.py`](demo/validate_bst.py) | [98](https://leetcode.com/problems/validate-binary-search-tree/) Validate BST | Bounds, not just parents |
-| [`implement_trie.py`](demo/implement_trie.py) | [208](https://leetcode.com/problems/implement-trie-prefix-tree/) Implement Trie | Prefix search over a word set |
+| [`implement_trie.py`](demo/implement_trie.py) | [208](https://leetcode.com/problems/implement-trie-prefix-tree/) Implement Trie | Walk and build the nodes yourself |
 | [`word_break.py`](demo/word_break.py) | [139](https://leetcode.com/problems/word-break/) Word Break | A trie plus a DP sweep |
 | [`number_of_provinces.py`](demo/number_of_provinces.py) | [547](https://leetcode.com/problems/number-of-provinces/) Number of Provinces | Union-find over a matrix |
 | [`redundant_connection.py`](demo/redundant_connection.py) | [684](https://leetcode.com/problems/redundant-connection/) Redundant Connection | The edge that closes a cycle |

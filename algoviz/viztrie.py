@@ -6,9 +6,12 @@ did the last insert or search take" -- so every mutating or searching
 call records the path it walked, and the render highlights it in
 `get_color`/`set_color` and marks end-of-word nodes with a bullet.
 
-There is no LeetCode-shape node to stay compatible with here (trie
-problems are usually asked to be implemented from scratch), so the
-internal node type is private; the public surface is the operations.
+Trie problems are almost always asked to be implemented from scratch,
+so `TrieNode` is public and `root_node` hands it out. A student can walk
+and mutate the trie by hand, calling `visit()` to drive the animation one
+node at a time -- the same shape `VizTree` and `VizLinkedList` use. The
+built-in `insert`/`search`/`delete` are there for when the trie is a tool
+in some larger problem, not the exercise itself.
 """
 
 from __future__ import annotations
@@ -21,19 +24,24 @@ from rich.tree import Tree
 
 from algoviz.core import VizBase, VizConfig, paint
 
-__all__ = ["VizTrie"]
+__all__ = ["TrieNode", "VizTrie"]
 
 _WORD_MARK = "•"
 
 
-class _TrieNode:
-    """One node of the trie: its children and whether a word ends here."""
+class TrieNode:
+    """One node of the trie: its children and whether a word ends here.
+
+    Public, and deliberately plain, because implementing the walk over
+    these nodes is the exercise. `children` maps a single character to
+    the next node; `is_word` marks that a word ends here.
+    """
 
     __slots__ = ("children", "is_word")
 
     def __init__(self) -> None:
         """Create a node with no children, not yet the end of a word."""
-        self.children: dict[str, _TrieNode] = {}
+        self.children: dict[str, TrieNode] = {}
         self.is_word = False
 
 
@@ -58,8 +66,7 @@ class VizTrie(VizBase):
         super().__init__(
             title=title_name, config=config, parent=parent, **overrides
         )
-        self._root = _TrieNode()
-        self._word_count = 0
+        self._root = TrieNode()
 
         for word in source or ():
             self._insert_quietly(word)
@@ -76,11 +83,9 @@ class VizTrie(VizBase):
         if not word:
             raise ValueError("cannot insert an empty word")
         path = self._create_path(word)
-        if not path[-1].is_word:
-            self._word_count += 1
         path[-1].is_word = True
 
-    def _create_path(self, word: str) -> list[_TrieNode]:
+    def _create_path(self, word: str) -> list[TrieNode]:
         """Create any missing nodes along `word`, returning the full path.
 
         The path always starts with the root, so it has `len(word) + 1`
@@ -89,11 +94,11 @@ class VizTrie(VizBase):
         node = self._root
         path = [node]
         for char in word:
-            node = node.children.setdefault(char, _TrieNode())
+            node = node.children.setdefault(char, TrieNode())
             path.append(node)
         return path
 
-    def _walk(self, prefix: str) -> list[_TrieNode]:
+    def _walk(self, prefix: str) -> list[TrieNode]:
         """Nodes visited while consuming `prefix`, starting with the root.
 
         Stops early -- the returned path is shorter than
@@ -121,8 +126,6 @@ class VizTrie(VizBase):
         if not word:
             raise ValueError("cannot insert an empty word")
         path = self._create_path(word)
-        if not path[-1].is_word:
-            self._word_count += 1
         path[-1].is_word = True
 
         self.highlights.clear()
@@ -158,7 +161,6 @@ class VizTrie(VizBase):
             return False
 
         path[-1].is_word = False
-        self._word_count -= 1
         self._prune(path, word)
 
         self.highlights.clear()
@@ -166,7 +168,7 @@ class VizTrie(VizBase):
         self._auto_show()
         return True
 
-    def _prune(self, path: list[_TrieNode], word: str) -> None:
+    def _prune(self, path: list[TrieNode], word: str) -> None:
         """Drop trailing nodes in `path` that no longer serve a purpose."""
         for depth in range(len(word), 0, -1):
             node = path[depth]
@@ -181,15 +183,20 @@ class VizTrie(VizBase):
         self._collect(self._root, "", found)
         return sorted(found)
 
-    def _collect(self, node: _TrieNode, prefix: str, out: list[str]) -> None:
+    def _collect(self, node: TrieNode, prefix: str, out: list[str]) -> None:
         if node.is_word:
             out.append(prefix)
         for char, child in node.children.items():
             self._collect(child, prefix + char, out)
 
     def __len__(self) -> int:
-        """Number of words stored."""
-        return self._word_count
+        """Number of words stored.
+
+        Counted from the nodes rather than cached, so it stays correct
+        when a caller sets `is_word` by hand while implementing their
+        own insert.
+        """
+        return len(self.words())
 
     def __contains__(self, word: str) -> bool:
         """True when `word` was inserted exactly."""
@@ -198,6 +205,41 @@ class VizTrie(VizBase):
     def __iter__(self) -> Iterator[str]:
         """Iterate stored words in sorted order."""
         return iter(self.words())
+
+    # -- driving your own traversal ----------------------------------------
+
+    @property
+    def root_node(self) -> TrieNode:
+        """The root `TrieNode`, the starting point for your own walk.
+
+        The root holds no character; a word's first letter is a key in
+        `root_node.children`. Named `root_node` rather than `root`
+        because `VizBase.root` already means "the outermost structure
+        that owns drawing" and `_auto_show` depends on that meaning.
+        """
+        return self._root
+
+    def visit(self, node: TrieNode | None, writing: bool = False) -> None:
+        """Mark `node` as the one currently being visited, then redraw.
+
+        Call this inside your own insert or search loop to animate it one
+        node at a time. Visits accumulate, so the path you have walked so
+        far stays lit until the next redraw clears it.
+
+        Args:
+            node: The node being visited. `None` is a no-op, so this is
+                safe to call unconditionally when a child may be missing.
+            writing: Highlight in `set_color` instead of `get_color`, for
+                when the step creates or modifies a node rather than
+                reading it.
+        """
+        if node is None:
+            return
+        if writing:
+            self.highlights.mark_set(id(node))
+        else:
+            self.highlights.mark_get(id(node))
+        self._auto_show()
 
     # -- viz plumbing ------------------------------------------------------
 
@@ -209,7 +251,7 @@ class VizTrie(VizBase):
         self._attach(tree, self._root)
         return tree
 
-    def _attach(self, branch: Tree, node: _TrieNode) -> None:
+    def _attach(self, branch: Tree, node: TrieNode) -> None:
         for char, child in sorted(node.children.items()):
             style = self.highlights.style_for(id(child), self.config)
             label = paint(char, style)

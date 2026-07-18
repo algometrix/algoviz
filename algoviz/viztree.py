@@ -186,7 +186,13 @@ class VizTree(VizBase):
         self._auto_show()
 
     def search(self, val: Any) -> TreeNode | None:
-        """Find `val` using BST ordering, highlighting the path walked."""
+        """Find `val` using BST ordering, highlighting the path walked.
+
+        Only valid on a binary SEARCH tree. On a plain binary tree this
+        follows the wrong branch and returns `None` for values that are
+        genuinely present, without raising. Use `find` when the tree is
+        not ordered.
+        """
         node = self._root
         while node is not None:
             self.highlights.mark_get(id(node))
@@ -194,6 +200,32 @@ class VizTree(VizBase):
                 return node
             node = node.left if val < node.val else node.right
         return None
+
+    def find(self, val: Any) -> TreeNode | None:
+        """Find `val` anywhere in the tree, whatever its shape.
+
+        Unlike `search`, this makes no ordering assumption, so it is the
+        right choice on a plain binary tree. Scans in level order and
+        returns the shallowest, leftmost match.
+        """
+        for node in self._nodes_in_level_order():
+            self.highlights.mark_get(id(node))
+            if node.val == val:
+                return node
+        return None
+
+    def _nodes_in_level_order(self) -> Iterator[TreeNode]:
+        """Every node, breadth-first, left to right."""
+        if self._root is None:
+            return
+        queue = deque([self._root])
+        while queue:
+            node = queue.popleft()
+            yield node
+            if node.left is not None:
+                queue.append(node.left)
+            if node.right is not None:
+                queue.append(node.right)
 
     def visit(self, node: TreeNode | None) -> None:
         """Mark `node` as the one currently being visited, then redraw.

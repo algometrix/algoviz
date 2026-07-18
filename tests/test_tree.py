@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 from algoviz.core import VizConfig
 from algoviz.viztree import TreeNode, VizTree
@@ -226,3 +228,43 @@ class TestVisit:
         sut.visit(None)  # must not raise
 
         assert sut.highlights.gets == frozenset()
+
+
+class TestFindOnUnorderedTrees:
+    """`search` assumes BST ordering; `find` must not."""
+
+    PLAIN: ClassVar = [3, 9, 20, None, None, 15, 7]
+
+    def test_search_misses_values_on_a_plain_tree(self):
+        """Pinning the footgun `find` exists to avoid."""
+        tree = VizTree.from_level_order(self.PLAIN, config=QUIET)
+        assert tree.search(9) is None, "BST search follows the wrong branch"
+        assert tree.search(7) is None
+
+    def test_find_locates_every_value_on_a_plain_tree(self):
+        tree = VizTree.from_level_order(self.PLAIN, config=QUIET)
+        for value in (3, 9, 20, 15, 7):
+            found = tree.find(value)
+            assert found is not None, f"find({value}) missed a present node"
+            assert found.val == value
+
+    def test_find_returns_none_for_an_absent_value(self):
+        tree = VizTree.from_level_order(self.PLAIN, config=QUIET)
+        assert tree.find(99) is None
+
+    def test_find_on_an_empty_tree(self):
+        assert VizTree.from_level_order([], config=QUIET).find(1) is None
+
+    def test_find_returns_the_shallowest_leftmost_match(self):
+        tree = VizTree.from_level_order([1, 1, 1], config=QUIET)
+        assert tree.find(1) is tree.root_node
+
+    def test_find_highlights_what_it_scanned(self):
+        tree = VizTree.from_level_order(self.PLAIN, config=QUIET)
+        tree.find(9)
+        assert tree.highlights.gets, "the scanned path should be visible"
+
+    def test_find_agrees_with_search_on_a_real_bst(self):
+        tree = VizTree.from_level_order([5, 3, 8], config=QUIET)
+        for value in (5, 3, 8):
+            assert tree.find(value) is tree.search(value)

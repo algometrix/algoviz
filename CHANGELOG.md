@@ -25,6 +25,12 @@ A rewrite of the core plus ten new data structures.
   exposes the real nodes, so pointer-rewiring problems work directly.
 - `VizTree` builds from the level-order list with `None` padding that problems
   are stated in, and exposes all four traversals.
+- `TrieNode` is public and `VizTrie` exposes `root_node` and `visit()`, so a
+  student can implement insert and search by hand and still see each step.
+  This matches the hooks `VizTree` and `VizLinkedList` already had.
+- `VizTree.find()` locates a value in a tree of any shape. `search()` assumes
+  BST ordering and silently returns `None` for present values on an unordered
+  tree, which is now documented on `search` itself.
 - Top-level exports: everything is importable from `algoviz` directly.
 - 530 tests, 95% coverage, and 26 runnable demos in `demo/` that are executed
   and checked against the correct answers in CI.
@@ -60,6 +66,15 @@ A rewrite of the core plus ten new data structures.
 - `render_list` raised `UnboundLocalError` on the 2D path.
 - The license file was named `LICENSE.txt ` with a trailing space, which broke
   metadata generation and therefore `pip install`.
+- Three demos delegated the problem's core algorithm to the library instead of
+  demonstrating it: the trie demo called the library's `insert`/`search` when
+  implementing those *is* the exercise, the level-order demo called
+  `VizTree.level_order()` instead of driving a queue, and the top-K demo called
+  `nlargest` instead of maintaining a bounded heap. All three now write the
+  algorithm. The level-order demo was additionally broken, using BST `search`
+  on an unordered tree, so it silently highlighted only 3 of 5 nodes.
+- `VizTrie.__len__` returned a cached count that went stale as soon as a caller
+  set `is_word` directly; it now counts from the nodes.
 - Removed a stale `README.txt` that had drifted from `README.md`.
 
 ## [0.2.3] - 2021
