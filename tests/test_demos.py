@@ -7,6 +7,7 @@ the answer the LeetCode problem actually has.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -66,7 +67,11 @@ def run_demo(name: str) -> str:
         cwd=REPO_ROOT,
         timeout=60,
         check=False,
-        env={"TERM": "dumb", "NO_COLOR": "1", "PATH": ""},
+        # Overlay onto the real environment rather than replacing it.
+        # A bare dict drops SYSTEMROOT, and without it Windows Python
+        # cannot reach the OS random source and dies during startup with
+        # "failed to get random numbers to initialize Python".
+        env={**os.environ, "TERM": "dumb", "NO_COLOR": "1"},
     )
     assert result.returncode == 0, f"{name} failed:\n{result.stderr}"
     return result.stdout
