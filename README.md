@@ -334,7 +334,7 @@ This project uses [uv](https://github.com/astral-sh/uv).
 
 ```bash
 uv sync             # create the environment
-uv run pytest       # 530 tests
+uv run pytest       # 547 tests
 uv run pytest --cov # with coverage
 uv run ruff check   # lint
 uv run ruff format  # format
