@@ -1,0 +1,113 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "algoviz"
+version = "0.3.0"
+description = "Self-rendering data structures for visualizing algorithms in the terminal"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.10"
+authors = [{ name = "Ashish Nagar", email = "ashishnagar31@gmail.com" }]
+keywords = ["visualization", "algorithms", "leetcode", "teaching", "terminal"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    # No license classifier: PEP 639 supersedes it with the SPDX `license`
+    # field above, and setting both is an error on modern build backends.
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = ["rich>=13.0"]
+
+[project.urls]
+Homepage = "https://github.com/algometrix/algoviz"
+Source = "https://github.com/algometrix/algoviz"
+Issues = "https://github.com/algometrix/algoviz/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["algoviz"]
+
+[tool.hatch.build.targets.sdist]
+include = ["algoviz", "tests", "demo", "README.md", "LICENSE.txt"]
+
+# -- test ------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["algoviz"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "raise NotImplementedError", "if TYPE_CHECKING:"]
+
+# -- lint ------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 80
+target-version = "py310"
+src = ["algoviz", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # import sorting
+    "B",      # bugbear
+    "C4",     # comprehensions
+    "D",      # docstrings
+    "UP",     # pyupgrade
+    "SIM",    # simplify
+    "RUF",    # ruff-specific
+    "PLC0415", # imports must live at module top level
+]
+ignore = [
+    "D203",  # conflicts with D211
+    "D213",  # conflicts with D212
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test classes and methods are named to describe themselves; a docstring on
+# every one is noise. SIM117 fires on deliberately nested `with` blocks that
+# are the thing under test.
+"tests/*" = ["D100", "D101", "D102", "D103", "D104", "SIM117"]
+"demo/*" = ["INP001"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# -- types -----------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.10"
+files = ["algoviz"]
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
