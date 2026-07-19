@@ -8,8 +8,6 @@
 [![PyPI](https://img.shields.io/pypi/v/algoviz.svg?logo=pypi&logoColor=white)](https://pypi.org/project/algoviz/)
 [![Python](https://img.shields.io/pypi/pyversions/algoviz.svg?logo=python&logoColor=white)](https://pypi.org/project/algoviz/)
 [![Downloads](https://static.pepy.tech/badge/algoviz)](https://pepy.tech/project/algoviz)
-[![Downloads/month](https://img.shields.io/pypi/dm/algoviz.svg)](https://pypi.org/project/algoviz/)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](#development)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE.txt)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
@@ -342,7 +340,7 @@ This project uses [uv](https://github.com/astral-sh/uv).
 
 ```bash
 uv sync             # create the environment
-uv run pytest       # 547 tests
+uv run pytest       # 560 tests
 uv run pytest --cov # with coverage
 uv run ruff check   # lint
 uv run ruff format  # format

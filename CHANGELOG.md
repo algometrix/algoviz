@@ -32,7 +32,7 @@ A rewrite of the core plus ten new data structures.
   BST ordering and silently returns `None` for present values on an unordered
   tree, which is now documented on `search` itself.
 - Top-level exports: everything is importable from `algoviz` directly.
-- 547 tests, 95% coverage, and 26 runnable demos in `demo/` that are executed
+- 560 tests, 95% coverage, and 26 runnable demos in `demo/` that are executed
   and checked against the correct answers in CI.
 
 ### Changed
