@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "algoviz"
-version = "0.3.0"
+version = "0.4.0"
 description = "Self-rendering data structures for visualizing algorithms in the terminal"
 readme = "README.md"
 license = "MIT"
