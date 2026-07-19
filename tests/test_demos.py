@@ -27,6 +27,11 @@ EXPECTED = {
     "house_robber.py": "Output : 12",
     "jump.py": "Output : 2",
     "longest_common_subsequence.py": "Output : 3",
+    # Two pointers and prefix sums
+    "container_with_most_water.py": "Output : 49",
+    "dutch_national_flag.py": "Output : [0, 0, 1, 1, 2, 2]",
+    "subarray_sum_equals_k.py": "Output : 2",
+    "three_sum.py": "Output : [[-1, -1, 2], [-1, 0, 1]]",
     # Stacks
     "daily_temperatures.py": "Output : [1, 1, 4, 2, 1, 1, 0, 0]",
     "min_stack.py": "Output : -3",

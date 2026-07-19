@@ -318,3 +318,103 @@ class TestRegressions:
         viz = make([1, 2, 3])
         assert list(viz) == [1, 2, 3]
         assert viz.data == [1, 2, 3]
+
+
+class TestPointers:
+    """Two-pointer problems are about where the pointers are."""
+
+    def test_set_and_read_back(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("low", 0)
+        viz.set_pointer("high", 2)
+        assert viz.pointers == {"low": 0, "high": 2}
+
+    def test_moving_a_pointer_replaces_it(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 0)
+        viz.set_pointer("i", 2)
+        assert viz.pointers == {"i": 2}
+
+    def test_none_removes_a_pointer(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 1)
+        viz.set_pointer("i", None)
+        assert viz.pointers == {}
+
+    def test_removing_an_absent_pointer_is_harmless(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("nope", None)
+        assert viz.pointers == {}
+
+    def test_clear_pointers(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 0)
+        viz.set_pointer("j", 1)
+        viz.clear_pointers()
+        assert viz.pointers == {}
+
+    def test_pointers_property_is_a_snapshot(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 0)
+        viz.pointers["i"] = 99
+        assert viz.pointers == {"i": 0}
+
+    def test_setting_a_pointer_is_not_a_read(self):
+        """The caller's own subscript records reads; this must not."""
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 1)
+        assert not viz.highlights.gets
+
+    def test_out_of_range_is_stored_but_not_drawn(self):
+        """Pointers legally run past the end as a loop terminates."""
+        viz = make([1, 2, 3])
+        viz.set_pointer("past", 3)
+        assert viz.pointers == {"past": 3}
+        assert "past" not in render(viz)
+
+    def test_negative_index_is_not_drawn(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("before", -1)
+        assert "before" not in render(viz)
+
+    def test_rejects_a_non_integer(self):
+        viz = make([1, 2, 3])
+        with pytest.raises(TypeError, match="int"):
+            viz.set_pointer("i", "1")
+
+    def test_rejects_a_bool(self):
+        """A bool is an int subclass, and True as an index is a bug."""
+        viz = make([1, 2, 3])
+        with pytest.raises(TypeError, match="int"):
+            viz.set_pointer("i", True)
+
+    def test_rejected_on_a_2d_list(self):
+        viz = make([[1, 2], [3, 4]])
+        with pytest.raises(NotImplementedError, match="2D"):
+            viz.set_pointer("i", 0)
+
+    def test_label_is_drawn_under_the_value(self):
+        viz = make([10, 20, 30])
+        viz.set_pointer("low", 1)
+        assert "low" in render(viz)
+
+    def test_several_pointers_on_one_index_are_merged(self):
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 1)
+        viz.set_pointer("j", 1)
+        assert "i,j" in flat(viz)
+
+    def test_no_pointer_row_when_none_are_set(self):
+        """An untouched list must render exactly as it did before."""
+        before = render(make([1, 2, 3]))
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 0)
+        viz.set_pointer("i", None)
+        assert render(viz) == before
+
+    def test_pointers_survive_a_redraw(self):
+        """A label stays put until the pointer moves, unlike a highlight."""
+        viz = make([1, 2, 3])
+        viz.set_pointer("i", 1)
+        viz.show()
+        assert "i" in render(viz)
