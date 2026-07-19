@@ -1,11 +1,15 @@
 name: Release
 
-# Publishes to PyPI when a version tag is pushed.
+# Publishes to PyPI when a version tag is pushed, then opens a GitHub
+# Release with the notes for that version taken from CHANGELOG.md.
 #
 # Uses PyPI Trusted Publishing (OIDC), so there is no API token stored in
 # repository secrets at all. Configure the publisher once at
 # https://pypi.org/manage/project/algoviz/settings/publishing/ with:
 #   owner: algometrix, repo: algoviz, workflow: release.yml, environment: pypi
+#
+# To cut a release: bump `version` in pyproject.toml, then push a tag that
+# matches it, e.g. `git tag -a v0.3.1 -m v0.3.1 && git push origin v0.3.1`.
 on:
   push:
     tags: ["v*"]
@@ -17,22 +21,53 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Release notes are read out of CHANGELOG.md at the tagged commit.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
       - name: Verify the tag matches the version in pyproject.toml
+        id: check
         # A tag that disagrees with the packaged version ships something
         # nobody can reproduce from the repo, so fail before building.
+        #
+        # This reads the ref rather than an input, so a manual run has to be
+        # started against the tag itself. Started from a branch it would see
+        # a branch name where a version belongs, so say that plainly instead
+        # of failing with a confusing mismatch.
         run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::Run this workflow against a tag, not '${GITHUB_REF_NAME}'. Pick the tag in the ref dropdown."
+            exit 1
+          fi
           tag="${GITHUB_REF_NAME#v}"
           packaged="$(uv version --short)"
           if [ "$tag" != "$packaged" ]; then
-            echo "::error::tag v$tag does not match version $packaged"
+            echo "::error::tag ${GITHUB_REF_NAME} does not match packaged version $packaged. Bump pyproject.toml or retag."
             exit 1
           fi
+          echo "version=$packaged" >> "$GITHUB_OUTPUT"
+
+      - name: Extract this version's changelog section
+        # Everything between this version's heading and the next one. Kept
+        # as a build artifact so the release job does not re-read the repo.
+        run: |
+          awk -v version="${{ steps.check.outputs.version }}" '
+            $0 ~ "^## \\[" version "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for ${{ steps.check.outputs.version }}"
+            exit 1
+          fi
+          cat release-notes.md
 
       - run: uv build
       - run: uvx twine check dist/*
@@ -40,6 +75,10 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
 
   publish:
     needs: build
@@ -53,3 +92,30 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    # Runs only after PyPI accepted the upload, so a GitHub Release never
+    # advertises a version that is not actually installable.
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create the release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "v${VERSION}" \
+            --notes-file release-notes.md \
+            --verify-tag \
+            dist/*
