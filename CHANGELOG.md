@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `VizList.set_pointer(name, index)`, `clear_pointers()`, and a `pointers`
+  property. Two-pointer problems are about where the pointers are, and until
+  now only `VizLinkedList` could show one. Labels are drawn in a row under the
+  values and stay put until the pointer moves, unlike a highlight, which
+  clears every frame. Pointers take an index rather than a value, since that
+  is what the algorithm already holds; an out-of-range index is remembered but
+  not drawn, so loops that terminate by walking off the end need no guard.
+- Four demos this unlocks: Sort Colors (the Dutch national flag partition),
+  Container With Most Water, 3Sum, and Subarray Sum Equals K. That last one is
+  deliberately not a two-pointer solution, since negative numbers break the
+  sliding window, and it pairs `VizList` with `VizDict` to show the prefix-sum
+  map filling up.
+
 ## [0.3.0] - 2026-07-18
 
 A rewrite of the core plus ten new data structures.

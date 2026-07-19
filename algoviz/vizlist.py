@@ -14,9 +14,13 @@ from typing import Any
 from rich.console import RenderableType
 from rich.table import Table
 
-from algoviz.core import VizBase, VizConfig, paint
+from algoviz.core import VizBase, VizConfig, glyph, paint
 
 __all__ = ["VizList"]
+
+# Same marker VizLinkedList uses, with the same ASCII fallback for
+# terminals whose encoding cannot carry an arrow.
+_POINTER_MARK = glyph("\u2191", "^")
 
 
 def _is_row(value: Any) -> bool:
@@ -67,6 +71,7 @@ class VizList(VizBase, MutableSequence):
                 self._adopt(row, position) for position, row in enumerate(data)
             ]
         self._data: list[Any] = data
+        self._pointers: dict[str, int] = {}
 
         if self.config.show_init:
             self.show(f"{self.title} Init")
@@ -212,6 +217,68 @@ class VizList(VizBase, MutableSequence):
             return [str(i) for i in range(width)]
         return [f"{name} [{i}]" for i, name in enumerate(self.col_index)]
 
+    # -- named pointers ----------------------------------------------------
+
+    def set_pointer(self, name: str, index: int | None) -> None:
+        """Point the named pointer at `index`, then redraw.
+
+        Two-pointer problems are about where the pointers are, so this
+        draws a labelled row under the values and keeps it there until
+        the pointer moves again. Passing `index=None` removes it.
+
+        Pointers take an index rather than a value, which is what the
+        algorithm already has in hand. That differs from
+        `VizLinkedList.set_pointer`, which takes a node, because a list
+        has positions where a chain only has nodes.
+
+        An out-of-range index is stored but not drawn. Pointers legally
+        run past the end as a loop terminates, and refusing that would
+        force a guard into every caller for the sake of the picture.
+
+        Raises:
+            TypeError: If `index` is not an int.
+            NotImplementedError: On a 2D list, where a single row of
+                labels cannot say which row it refers to.
+        """
+        if self.is_2d:
+            raise NotImplementedError(
+                "pointers are not supported on a 2D list; set them on a row"
+            )
+        if index is None:
+            self._pointers.pop(name, None)
+            self._auto_show()
+            return
+        if not isinstance(index, int) or isinstance(index, bool):
+            raise TypeError(f"pointer index must be an int, got {index!r}")
+        # Deliberately not marked as a read: the caller's own subscript
+        # records that. Marking here would paint every pointer move as an
+        # access even when the algorithm only compared indices.
+        self._pointers[name] = index
+        self._auto_show()
+
+    def clear_pointers(self) -> None:
+        """Remove every pointer, then redraw."""
+        self._pointers.clear()
+        self._auto_show()
+
+    @property
+    def pointers(self) -> dict[str, int]:
+        """A snapshot of the current pointer names and their indices."""
+        return dict(self._pointers)
+
+    def _pointer_cells(self) -> tuple[str, ...]:
+        """A row of pointer labels aligned under the values they mark."""
+        names_at: dict[int, list[str]] = {}
+        for name, index in sorted(self._pointers.items()):
+            if 0 <= index < len(self._data):
+                names_at.setdefault(index, []).append(name)
+
+        cells: list[str] = [""] if self.row_index else []
+        for index in range(len(self._data)):
+            names = names_at.get(index)
+            cells.append(f"{_POINTER_MARK}{','.join(names)}" if names else "")
+        return tuple(cells)
+
     def _renderable(self, title: str | None = None) -> RenderableType:
         table = Table(
             title=title or self.title, show_header=self.config.show_header
@@ -223,6 +290,8 @@ class VizList(VizBase, MutableSequence):
 
         if not self.is_2d:
             table.add_row(*self._cells())
+            if self._pointers:
+                table.add_row(*self._pointer_cells())
             return table
 
         for position, row in enumerate(self._data):

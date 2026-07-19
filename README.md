@@ -120,6 +120,7 @@ light up the step you are on:
 | `VizTree` | `root_node`, `TreeNode` | `visit(node)` |
 | `VizTrie` | `root_node`, `TrieNode` | `visit(node, writing=...)` |
 | `VizLinkedList` | `head`, `nodes()`, `ListNode` | `set_pointer(name, node)` |
+| `VizList` | positions | `set_pointer(name, index)` |
 
 ```python
 from algoviz import TrieNode, VizTrie
@@ -143,7 +144,7 @@ node.is_word = True
 
 ## Demo gallery
 
-Twenty-six runnable solutions live in [`demo/`](demo/). Every one is executed
+Thirty runnable solutions live in [`demo/`](demo/). Every one is executed
 and checked against the correct answer in CI, so none of them can rot.
 
 Each demo writes its own algorithm. Where the library offers a shortcut that
@@ -165,6 +166,15 @@ python demo/num_islands.py
 | [`jump.py`](demo/jump.py) | [45](https://leetcode.com/problems/jump-game-ii/) Jump Game II | Fewest jumps to the last index |
 | [`count_palin.py`](demo/count_palin.py) | [647](https://leetcode.com/problems/palindromic-substrings/) Palindromic Substrings | Expand a 2D table |
 | [`longest_common_subsequence.py`](demo/longest_common_subsequence.py) | [1143](https://leetcode.com/problems/longest-common-subsequence/) LCS | The canonical 2D table |
+
+#### Two pointers and prefix sums
+
+| Demo | Problem | Idea |
+| :--- | :--- | :--- |
+| [`dutch_national_flag.py`](demo/dutch_national_flag.py) | [75](https://leetcode.com/problems/sort-colors/) Sort Colors | Three-pointer partition in one pass |
+| [`container_with_most_water.py`](demo/container_with_most_water.py) | [11](https://leetcode.com/problems/container-with-most-water/) Container With Most Water | Converge from both ends |
+| [`three_sum.py`](demo/three_sum.py) | [15](https://leetcode.com/problems/3sum/) 3Sum | Sort, then two-pointer the rest |
+| [`subarray_sum_equals_k.py`](demo/subarray_sum_equals_k.py) | [560](https://leetcode.com/problems/subarray-sum-equals-k/) Subarray Sum Equals K | Prefix sums in a map |
 
 #### Stacks, queues, and deques
 
@@ -202,6 +212,33 @@ python demo/num_islands.py
 | [`redundant_connection.py`](demo/redundant_connection.py) | [684](https://leetcode.com/problems/redundant-connection/) Redundant Connection | The edge that closes a cycle |
 
 ## Highlights
+
+### Two pointers
+
+`VizList` takes named pointers by index, so the labels track your loop
+variables and the invariant is visible instead of implied.
+
+```python
+from algoviz import VizList
+
+colors = VizList([2, 0, 2, 1, 1, 0], title_name='Sort Colors')
+colors.set_pointer('low', 0)
+colors.set_pointer('mid', 0)
+colors.set_pointer('high', 5)
+```
+
+```text
+            Sort Colors
+┏━━━━━━━━━━┳━━━┳━━━┳━━━┳━━━┳━━━━━━━┓
+┃ 0        ┃ 1 ┃ 2 ┃ 3 ┃ 4 ┃ 5     ┃
+┡━━━━━━━━━━╇━━━╇━━━╇━━━╇━━━╇━━━━━━━┩
+│ 2        │ 0 │ 2 │ 1 │ 1 │ 0     │
+│ ↑low,mid │   │   │   │   │ ↑high │
+└──────────┴───┴───┴───┴───┴───────┘
+```
+
+A pointer that runs past the end is remembered but not drawn, so loops
+that terminate by walking off the array need no special-casing.
 
 ### Stack
 
@@ -340,7 +377,7 @@ This project uses [uv](https://github.com/astral-sh/uv).
 
 ```bash
 uv sync             # create the environment
-uv run pytest       # 560 tests
+uv run pytest       # 584 tests
 uv run pytest --cov # with coverage
 uv run ruff check   # lint
 uv run ruff format  # format
