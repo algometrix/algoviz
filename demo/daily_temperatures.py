@@ -10,16 +10,21 @@ every frame is a staircase narrowing toward the top. Watch what a warm day
 does: each bar shorter than the incoming temperature pops off, one frame
 each, until the staircase is restored and the new day is pushed on top.
 That popping *is* how the invariant is maintained.
+
+The answer array is drawn alongside, because the pop is where this
+algorithm does its real work. A day leaves the stack exactly when its
+answer becomes knowable, and the write that follows each pop is the whole
+output being assembled one cell at a time. Watching only the stack shows
+the bookkeeping and hides the result.
 """
 
-from algoviz import VizStack
+from algoviz import VizList, VizStack
 
 TEMPS = [73, 74, 75, 71, 69, 72, 76, 73]
 
 
 def daily_temperatures(temps: list[int]) -> list[int]:
     """Hold indices still waiting for a warmer day, warmest at the bottom."""
-    answer = [0] * len(temps)
     stack = VizStack(
         title_name="Waiting (indices)",
         bar_of=lambda index: temps[index],
@@ -29,15 +34,18 @@ def daily_temperatures(temps: list[int]) -> list[int]:
         bar_min=min(temps),
         bar_max=max(temps),
     )
+    answer = VizList([0] * len(temps), title_name="Answer (days waited)")
 
     for index, temp in enumerate(temps):
         stack.print(f"\nday {index}, temp {temp}:")
         while stack and temps[stack.peek()] < temp:
             earlier = stack.pop()
+            # The pop and this write are one event: the day leaves the
+            # stack precisely because its answer is now known.
             answer[earlier] = index - earlier
         stack.push(index)
 
-    return answer
+    return answer.data
 
 
 if __name__ == "__main__":

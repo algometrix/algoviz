@@ -8,6 +8,9 @@ centre.
 
 from __future__ import annotations
 
+import sys
+from typing import ClassVar
+
 import pytest
 from algoviz import core
 from algoviz.core import VizConfig
@@ -375,6 +378,97 @@ class TestRendering:
         with core.console.capture() as captured:
             core.console.print(grid._renderable())
         assert captured.get()
+
+
+class TestCellMap:
+    """`cell_map` gives a cell value a glyph and a colour of its own."""
+
+    ORANGES: ClassVar = {
+        "0": ("·", "grey37"),
+        "1": ("■", "green"),
+        "2": ("■", "red"),
+    }
+    GLYPHS: ClassVar = frozenset("■·")
+
+    def render(self, grid):
+        with core.console.capture() as captured:
+            core.console.print(grid._renderable())
+        return captured.get()
+
+    def first_row_cells(self, output):
+        """The data cells of row 0, with the row-label column dropped.
+
+        Found by glyph rather than by line number: rich draws a border
+        and a header above the data, and their heights are not ours.
+        """
+        row = next(
+            line for line in output.splitlines() if self.GLYPHS & set(line)
+        )
+        return [part.strip() for part in row.split("│") if part.strip()][1:]
+
+    def test_glyph_replaces_the_value_text(self):
+        grid = make([["1", "0"]], cell_map=self.ORANGES)
+
+        # Both values are gone from the cells; only glyphs remain.
+        assert self.first_row_cells(self.render(grid)) == ["■", "·"]
+
+    def test_colour_only_entry_keeps_the_text(self):
+        grid = make([["1"]], cell_map={"1": "green"})
+        assert "1" in self.render(grid)
+        assert grid._style_for_cell(0, 0) == "green"
+
+    def test_unmapped_value_renders_unchanged(self):
+        grid = make([["1", "9"]], cell_map={"1": ("■", "green")})
+        assert "9" in self.render(grid)
+        assert grid._style_for_cell(0, 1) is None
+
+    def test_value_colour_applies_when_nothing_else_does(self):
+        grid = make([["2"]], cell_map=self.ORANGES)
+        assert grid._style_for_cell(0, 0) == "red"
+
+    def test_mark_outranks_value_colour(self):
+        grid = make([["2"]], cell_map=self.ORANGES)
+        grid.mark_visited(0, 0)
+        assert grid._style_for_cell(0, 0) == grid._mark_colors[Mark.VISITED]
+
+    def test_base_highlight_outranks_value_colour(self):
+        grid = make([["2"]], cell_map=self.ORANGES)
+        grid[0, 0]  # records a base "get" highlight
+        assert grid._style_for_cell(0, 0) == grid.config.get_color
+
+    def test_marked_cell_keeps_its_glyph(self):
+        grid = make([["1"]], cell_map=self.ORANGES)
+        grid.mark_visited(0, 0)
+        # Glyph is identity, colour is state: land stays land while visited.
+        assert "■" in self.render(grid)
+
+    def test_no_cell_map_leaves_rendering_untouched(self):
+        grid = make([["1", "0"]])
+        assert "1" in self.render(grid)
+        assert grid._style_for_cell(0, 0) is None
+
+    def test_changed_value_takes_the_new_colour(self):
+        grid = make([["1"]], cell_map=self.ORANGES)
+        grid[0, 0] = "2"
+        grid.clear_highlights()
+        assert grid._style_for_cell(0, 0) == "red"
+
+    def test_unencodable_glyph_falls_back_to_the_value(self, monkeypatch):
+        class AsciiOnly:
+            encoding = "ascii"
+
+        monkeypatch.setattr(sys, "stdout", AsciiOnly())
+        grid = make([["1"]], cell_map=self.ORANGES)
+
+        assert grid._cell_styles["1"].glyph == "1"
+
+    def test_bad_spec_raises_type_error(self):
+        with pytest.raises(TypeError):
+            make([["1"]], cell_map={"1": ("■", "green", "extra")})
+
+    def test_non_string_glyph_raises_type_error(self):
+        with pytest.raises(TypeError):
+            make([["1"]], cell_map={"1": (1, "green")})
 
 
 class TestEquality:

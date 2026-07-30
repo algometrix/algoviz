@@ -94,7 +94,7 @@ class VizStack(VizBase):
         config: VizConfig | None = None,
         parent: VizBase | None = None,
         bar_of: Callable[[Any], float] | None = None,
-        bar_label: str = "size",
+        bar_label: str = "magnitude",
         bar_min: float | None = None,
         bar_max: float | None = None,
         bar_width: int = 12,
@@ -258,23 +258,22 @@ class VizStack(VizBase):
             return table
 
         table.add_column(self._bar_label)
-        values = [value for _, value, _ in rows]
-        cells = self._bar_cells(values, self._bar_of)
-        paired = list(zip(rows, cells, strict=True))
-        for (marker, value, style), cell in reversed(paired):
+        magnitudes = [float(self._bar_of(value)) for _, value, _ in rows]
+        cells = self._bar_cells(magnitudes)
+        for (marker, value, style), cell in reversed(
+            list(zip(rows, cells, strict=True))
+        ):
             table.add_row(marker, paint(value, style), paint(cell, style))
         return table
 
-    def _bar_cells(
-        self, values: list[Any], bar_of: Callable[[Any], float]
-    ) -> list[str]:
-        """A bar plus its numeric magnitude, one cell per value.
+    def _bar_cells(self, magnitudes: list[float]) -> list[str]:
+        """A bar plus its number, one cell per magnitude.
 
-        The magnitudes are right-aligned to the widest in *this* frame, so
-        a two-digit and a three-digit reading still line their bars up.
+        The numbers are right-aligned to the widest in *this* frame, so a
+        two-digit and a three-digit reading still line their bars up.
         """
-        magnitudes = [float(bar_of(value)) for value in values]
-        low, high = self._bar_scale(magnitudes)
+        self._widen_seen_range(magnitudes)
+        low, high = self._bar_bounds()
 
         labels = [f"{magnitude:g}" for magnitude in magnitudes]
         width = max((len(label) for label in labels), default=0)
@@ -283,13 +282,19 @@ class VizStack(VizBase):
             for magnitude, label in zip(magnitudes, labels, strict=True)
         ]
 
-    def _bar_scale(self, magnitudes: list[float]) -> tuple[float, float]:
-        """The (low, high) the current frame's bars are measured against.
+    def _widen_seen_range(self, magnitudes: list[float]) -> None:
+        """Record `magnitudes` in the running extremes. Drawing writes here.
 
-        A bound the caller pinned is used as given. An unpinned one widens
-        to cover every magnitude seen so far, across frames rather than
-        just this one, so a bar does not shrink merely because the taller
-        element above it was popped.
+        Magnitudes are observed only while drawing, because `bar_of` is
+        the one thing that knows how to read an element and the render
+        path is its only caller. So the extremes track what has been
+        *drawn*, not what has been pushed -- which is what the picture
+        wants anyway, since a bar should not re-scale to accommodate a
+        magnitude the reader never saw. A consequence worth knowing: a
+        push and pop that both happen under `auto_print=False` never
+        widen an unpinned scale, because no frame ever showed them.
+
+        They only widen, never narrow, so an unpinned scale settles.
         """
         for magnitude in magnitudes:
             if self._seen_low is None or magnitude < self._seen_low:
@@ -297,10 +302,16 @@ class VizStack(VizBase):
             if self._seen_high is None or magnitude > self._seen_high:
                 self._seen_high = magnitude
 
+    def _bar_bounds(self) -> tuple[float, float]:
+        """The (low, high) bars are measured against: pinned, else seen."""
         low = self._bar_min if self._bar_min is not None else self._seen_low
         high = self._bar_max if self._bar_max is not None else self._seen_high
-        # Both are None only on an empty stack, which draws no bars anyway.
-        return float(low or 0.0), float(high or 0.0)
+        # Either is None only on an empty stack, which draws no bars at
+        # all, so what is returned then is never measured against.
+        return (
+            0.0 if low is None else float(low),
+            0.0 if high is None else float(high),
+        )
 
     def _rows(self) -> Iterator[tuple[str, Any, str | None]]:
         """Bottom-to-top rows: (position marker, value, highlight style).

@@ -9,19 +9,33 @@ current path, or picked as start/target. That is a different shape of
 signal than `VizList`'s read/write highlighting, so `VizGrid` adds a
 persistent overlay on top of the base get/set highlighting instead of
 replacing it.
+
+The values themselves are the other half of the picture. `'0'`, `'1'`, and
+`'2'` mean empty, fresh, and rotten to the problem but nothing at all to the
+reader, who re-decodes them every frame. `cell_map` gives a value a glyph
+and a colour, so the grid shows oranges rotting rather than digits changing.
+
+`cell_map` is a dict where its sibling `VizStack.bar_of` is a function, and
+the difference is not an accident. A grid's values are a small closed
+alphabet -- `'0'`/`'1'`/`'2'`, land and water -- so a literal at the call
+site *is* the legend, readable and reviewable in place. A monotonic stack's
+elements are indices into an arbitrary array, an unbounded key space no
+literal could cover, which is why that feature takes a callable. Take the
+dict where the values enumerate; take the function where they do not.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
 from rich.console import RenderableType
 from rich.table import Table
 
-from algoviz.core import VizBase, VizConfig, paint
+from algoviz.core import VizBase, VizConfig, glyph, paint
 
 __all__ = ["Mark", "VizGrid"]
 
@@ -66,6 +80,68 @@ _PRECEDENCE: tuple[Mark, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class _CellStyle:
+    """How one cell value is drawn: its colour, and its glyph if it has one.
+
+    A value given only a colour keeps its own text, so `glyph` is None
+    rather than a copy of that text -- "no glyph was asked for" and "the
+    glyph happens to equal the value" are different facts, and only the
+    first should let a later default take effect.
+    """
+
+    color: str
+    glyph: str | None = None
+
+
+def _is_glyph_pair(spec: Any) -> bool:
+    """True when `spec` is a `(glyph, colour)` pair of strings."""
+    return (
+        isinstance(spec, tuple)
+        and len(spec) == 2
+        and all(isinstance(part, str) for part in spec)
+    )
+
+
+def _parse_cell_map(
+    cell_map: dict[Any, str | tuple[str, str]] | None,
+) -> dict[Any, _CellStyle]:
+    """Normalize a `cell_map` into one `_CellStyle` per cell value.
+
+    The union is input sugar and stops here, so nothing downstream has to
+    ask which of the two forms an entry was written in.
+
+    Glyphs are resolved against the output encoding once, here, rather
+    than on every render: the keys are known now, and each one's own
+    string is the natural fallback when its glyph cannot be encoded.
+
+    Args:
+        cell_map: Value to colour, or value to `(glyph, colour)`.
+
+    Returns:
+        One style per cell value, keyed by that value.
+
+    Raises:
+        TypeError: If an entry is neither a colour string nor a
+            `(glyph, colour)` pair of strings.
+    """
+    styles: dict[Any, _CellStyle] = {}
+    for value, spec in (cell_map or {}).items():
+        if isinstance(spec, str):
+            styles[value] = _CellStyle(color=spec)
+        elif _is_glyph_pair(spec):
+            mark, color = spec
+            styles[value] = _CellStyle(
+                color=color, glyph=glyph(mark, str(value))
+            )
+        else:
+            raise TypeError(
+                f"cell_map[{value!r}] must be a colour or a (glyph, colour) "
+                f"pair, got {spec!r}"
+            )
+    return styles
+
+
 class VizGrid(VizBase):
     """A 2D matrix rendered as a table with a persistent mark overlay.
 
@@ -87,6 +163,16 @@ class VizGrid(VizBase):
     point of this structure and a base highlight is incidental by
     comparison.
 
+    A `cell_map` colour sits below both, so the full colour precedence is
+    `overlay mark > read/write highlight > cell_map value`. The glyph is
+    a separate channel and always comes from the value, never from a
+    mark, so a visited land cell still looks like land. The corollary is
+    worth stating: mark cells for state the *values do not already
+    carry*. An algorithm that mutates values to record its progress --
+    flood fill repainting a region, rotting oranges turning `'1'` into
+    `'2'` -- says everything through `cell_map` already, and marking on
+    top of that only overwrites the colour that was doing the work.
+
     Known limitation: `grid[r][c] = value` (double subscript) mutates the
     row list returned by `grid[r]` directly. That bypasses highlighting
     and does not trigger a redraw, because the intermediate `grid[r]`
@@ -106,6 +192,7 @@ class VizGrid(VizBase):
         start_color: str = "green",
         target_color: str = "bright_red",
         mark_colors: dict[Mark, str] | None = None,
+        cell_map: dict[Any, str | tuple[str, str]] | None = None,
         cell_width: int | None = None,
         **overrides: Any,
     ) -> None:
@@ -128,6 +215,14 @@ class VizGrid(VizBase):
             target_color: Default colour for `Mark.TARGET` cells.
             mark_colors: Optional overrides merged on top of the five
                 `*_color` defaults above, keyed by `Mark`.
+            cell_map: What a cell *value* looks like, keyed by that value.
+                Each entry is either a colour, which tints the value as
+                written (`{'1': 'green'}`), or a `(glyph, colour)` pair,
+                which replaces the text too (`{'1': ('■', 'green')}`).
+                Values absent from the map render exactly as they do
+                without one, so a partial map is fine. A glyph the output
+                encoding cannot carry falls back to the raw value rather
+                than raising, the same bargain `glyph` makes elsewhere.
             cell_width: When set, every data column is rendered at this
                 fixed width, so single-character terrain (`'1'`/`'0'`)
                 reads as roughly square cells instead of being stretched
@@ -153,6 +248,7 @@ class VizGrid(VizBase):
             kind: set() for kind in Mark
         }
         self._batch_depth = 0
+        self._cell_styles = _parse_cell_map(cell_map)
 
         if self.config.show_init:
             self.show(f"{self.title} Init")
@@ -336,16 +432,28 @@ class VizGrid(VizBase):
         self._auto_show()
 
     def _style_for_cell(self, r: int, c: int) -> str | None:
-        """The colour `(r, c)` should render in, or None for no colour.
+        """The colour `(r, c)` renders in, or None for no colour.
 
-        Walks `_PRECEDENCE` and returns the first overlay mark present
-        on the cell. Falls back to the base get/set highlight colour
-        when the cell carries no overlay mark at all.
+        Precedence is stated once, on the class: overlay mark (in
+        `_PRECEDENCE` order) > read/write highlight > `cell_map` value.
         """
         for kind in _PRECEDENCE:
             if (r, c) in self._marks[kind]:
                 return self._mark_colors[kind]
-        return self.highlights.style_for((r, c), self.config)
+        base = self.highlights.style_for((r, c), self.config)
+        if base is not None:
+            return base
+        return self._color_for_value(self._data[r][c])
+
+    def _color_for_value(self, value: Any) -> str | None:
+        """The `cell_map` colour for `value`, or None when unmapped."""
+        style = self._cell_styles.get(value)
+        return style.color if style else None
+
+    def _text_for_value(self, value: Any) -> Any:
+        """The glyph `value` renders as, or the value itself when unmapped."""
+        style = self._cell_styles.get(value)
+        return style.glyph if style and style.glyph else value
 
     # -- batching --------------------------------------------------------
 
@@ -406,7 +514,8 @@ class VizGrid(VizBase):
         for r, row in enumerate(self._data):
             cells = [paint(r, None)]
             for c, value in enumerate(row):
-                cells.append(paint(value, self._style_for_cell(r, c)))
+                text = self._text_for_value(value)
+                cells.append(paint(text, self._style_for_cell(r, c)))
             table.add_row(*cells)
         return table
 

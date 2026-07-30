@@ -347,6 +347,46 @@ for row, col in grid.neighbors(0, 0):
 `grid.batch()` suspends redrawing so you get one frame per BFS level instead of
 one per cell.
 
+The cell *values* are the other half. `'0'`, `'1'`, `'2'` mean empty, fresh and
+rotten to the problem and nothing at all to the reader, so `cell_map` gives a
+value a glyph and a colour:
+
+```python
+grid = VizGrid(
+    board,
+    title_name='Oranges',
+    cell_map={
+        '0': ('·', 'grey37'),  # empty
+        '1': ('●', 'green'),   # fresh
+        '2': ('●', 'red'),     # rotten
+    },
+    cell_width=3,
+)
+```
+
+```text
+        Oranges
+┏━━━┳━━━━━┳━━━━━┳━━━━━┓
+┃   ┃  0  ┃  1  ┃  2  ┃
+┡━━━╇━━━━━╇━━━━━╇━━━━━┩
+│ 0 │  ●  │  ●  │  ●  │
+│ 1 │  ●  │  ●  │  ·  │
+│ 2 │  ·  │  ●  │  ●  │
+└───┴─────┴─────┴─────┘
+```
+
+An entry may also be a bare colour (`{'1': 'green'}`) to tint the value without
+replacing its text, and unmapped values render as they always did.
+
+The two channels are deliberately separate: **the glyph always comes from the
+value, the colour comes from the overlay when there is one.** Full precedence is
+`mark > read/write highlight > cell_map`. So a visited land cell turns cyan but
+still looks like land — and the corollary is that you should mark cells for
+state your *values do not already carry*. An algorithm that records progress by
+mutating values (flood fill repainting a region, oranges turning `'1'` into
+`'2'`) is already saying it through `cell_map`; marking on top only paints over
+the colour that was doing the work.
+
 ### Linked list
 
 Named pointers make two-pointer and cycle problems legible, and a cyclic list

@@ -19,9 +19,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   clustered values would otherwise all render as identical full bars; the
   magnitude is printed beside each bar to keep the truncated scale honest.
   Stacks with no `bar_of` render exactly as before.
-- `demo/daily_temperatures.py` now shows the invariant being maintained: it
-  announces each incoming day, then you watch every bar shorter than that
-  day's temperature pop off, one frame each, until the staircase is restored.
+- `VizGrid` `cell_map`, giving a cell *value* a glyph and a colour. Grid
+  problems encode their terrain as `'0'`/`'1'`/`'2'`, which means empty, fresh
+  and rotten to the problem and nothing to the reader, who re-decoded it every
+  frame. An entry is a colour, which tints the value as written, or a
+  `(glyph, colour)` pair, which replaces the text too; unmapped values render
+  as before. Glyphs are resolved against the output encoding once at
+  construction and fall back to the raw value on terminals that cannot carry
+  them, so redirected output degrades instead of raising.
+- The glyph and the colour are deliberately separate channels: the glyph always
+  comes from the value, never from a mark, so a visited land cell still reads
+  as land. Full colour precedence is now
+  `overlay mark > read/write highlight > cell_map value`.
+
+### Changed
+
+- The four demos these features touch were reworked around what a student is
+  meant to *learn* from the frames, not just around showing more:
+  - `daily_temperatures.py` announces each incoming day, then you watch every
+    bar shorter than that day's temperature pop off, one frame each, until the
+    staircase is restored. It now also draws the answer array, because the pop
+    is where the algorithm does its real work and the write that follows it was
+    previously invisible.
+  - `rotting_oranges.py` marks the oranges that rot *this* minute and clears
+    the mark at the top of the next, so the BFS frontier is a visible band
+    sweeping the grid. Colouring by value alone drew minute 1 and minute 3
+    identically, leaving the quantity being counted nowhere on screen.
+    `batch()` now gives exactly one frame per minute.
+  - `num_islands.py` marks each cell both path and visited, so the island being
+    explored stands out in magenta and settles to cyan when its fill drains.
+    One visited colour made two finished islands one undifferentiated blob,
+    which is the opposite of what the problem counts.
+  - `flood_fill.py` colours each shade, and no longer marks anything: the
+    repaint *is* the progress, and a mark would outrank the colour showing it.
 
 ## [0.4.0] - 2026-07-19
 
