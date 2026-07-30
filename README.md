@@ -263,6 +263,41 @@ for char in '([])':
 └──────────┴───────┘
 ```
 
+Monotonic stacks have a second problem: they order elements by a *magnitude*
+and usually store indices into some other array, so a column of raw values
+shows `2, 3, 4` and hides the invariant completely. `bar_of` maps each
+element to the magnitude it stands for and draws it:
+
+```python
+temps = [73, 74, 75, 71, 69, 72, 76, 73]
+stack = VizStack(
+    title_name='Waiting (indices)',
+    bar_of=lambda index: temps[index],
+    bar_label='temp',
+    bar_min=min(temps),
+    bar_max=max(temps),
+)
+```
+
+```text
+         Waiting (indices)
+┏━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+┃       ┃ value ┃ temp            ┃
+┡━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+│ ← top │ 4     │ █            69 │
+│       │ 3     │ ███▍         71 │
+│       │ 2     │ ██████████▎  75 │
+└───────┴───────┴─────────────────┘
+```
+
+"Temperatures decrease from the bottom up" is now a staircase you can see,
+and a warmer day pops the short bars off one frame at a time. Bars are
+measured against `bar_min`..`bar_max` rather than zero, because clustered
+magnitudes (eight temperatures between 69 and 76) would otherwise all draw
+as identical full bars; the number is printed beside each bar for that
+reason. Omit both bounds and the scale widens to fit whatever has been seen.
+A stack that holds magnitudes directly wants `bar_of=lambda value: value`.
+
 ### Heap
 
 Renders the backing array **and** the tree it represents, which is the part a

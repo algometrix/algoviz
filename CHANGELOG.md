@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `VizStack` bar column, opted into with `bar_of` and tuned with `bar_label`,
+  `bar_min`, `bar_max`, and `bar_width`. Monotonic-stack algorithms order
+  their elements by a magnitude and typically store indices into some other
+  array, so the rendered column read `2, 3, 4` and the invariant the
+  algorithm maintains was invisible. `bar_of` maps a stored element back to
+  the magnitude it stands for and draws it as a bar, turning "temperatures
+  decrease from the bottom of the stack up" into a visible staircase. Bars
+  are measured against the magnitude range rather than against zero, since
+  clustered values would otherwise all render as identical full bars; the
+  magnitude is printed beside each bar to keep the truncated scale honest.
+  Stacks with no `bar_of` render exactly as before.
+- `demo/daily_temperatures.py` now shows the invariant being maintained: it
+  announces each incoming day, then you watch every bar shorter than that
+  day's temperature pop off, one frame each, until the staircase is restored.
+
 ## [0.4.0] - 2026-07-19
 
 ### Added

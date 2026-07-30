@@ -157,3 +157,124 @@ class TestRendering:
 
         assert not sut.highlights.gets
         assert not sut.highlights.sets
+
+
+LOUD = VizConfig(sleep_time=0.0, show_init=False)
+TEMPS = [73, 74, 75, 71, 69, 72, 76, 73]
+
+
+def render(stack: VizStack) -> str:
+    """The text of one frame of `stack`."""
+    with console.capture() as capture:
+        stack.show()
+    return capture.get()
+
+
+def bar_widths(frame: str) -> list[int]:
+    """Filled cells per bar, top row first, ignoring partial blocks."""
+    return [line.count("█") for line in frame.splitlines() if "█" in line]
+
+
+class TestBars:
+    """`bar_of` draws the magnitude an element stands for."""
+
+    def test_no_bar_column_without_bar_of(self, sut: VizStack) -> None:
+        """A stack given no mapping renders exactly as it always did."""
+        assert "█" not in render(sut)
+
+    def test_bar_label_heads_the_column(self) -> None:
+        """The bar column carries the caller's heading."""
+        sut = VizStack([1], config=LOUD, bar_of=lambda v: v, bar_label="height")
+
+        assert "height" in render(sut)
+
+    def test_magnitude_is_printed_beside_its_bar(self) -> None:
+        """A bar is labelled with the number it represents."""
+        sut = VizStack([2], config=LOUD, bar_of=lambda i: TEMPS[i])
+
+        assert "75" in render(sut)
+
+    def test_taller_magnitude_draws_a_longer_bar(self) -> None:
+        """Bar length orders with magnitude, which is the whole point."""
+        sut = VizStack(
+            # Bottom-first, so this is temps 75, 71, 69: the staircase
+            # daily_temperatures holds after day 4.
+            [2, 3, 4],
+            config=LOUD,
+            bar_of=lambda i: TEMPS[i],
+            bar_min=min(TEMPS),
+            bar_max=max(TEMPS),
+        )
+
+        widths = bar_widths(render(sut))
+
+        # Rendered top-first, so the warmest (bottom of stack) comes last.
+        assert widths == sorted(widths)
+        assert widths[0] < widths[-1]
+
+    def test_element_may_be_its_own_magnitude(self) -> None:
+        """A stack of values wants an identity mapping, not an index one."""
+        sut = VizStack([1, 9], config=LOUD, bar_of=lambda value: value)
+
+        top, bottom = bar_widths(render(sut))
+
+        assert top > bottom
+
+    def test_popped_element_keeps_its_bar_for_one_frame(self) -> None:
+        """The departing element shows the magnitude that got it popped."""
+        sut = VizStack([1, 9], config=LOUD, bar_of=lambda value: value)
+
+        with console.capture() as capture:
+            sut.pop()
+
+        assert len(bar_widths(capture.get())) == 2
+
+    def test_equal_magnitudes_do_not_divide_by_zero(self) -> None:
+        """A degenerate span renders rather than raising."""
+        sut = VizStack([5, 5, 5], config=LOUD, bar_of=lambda value: value)
+
+        assert len(set(bar_widths(render(sut)))) == 1
+
+    def test_smallest_magnitude_still_draws_a_bar(self) -> None:
+        """The shortest bar is one cell, never a blank that reads as absent."""
+        sut = VizStack([3, 8], config=LOUD, bar_of=lambda value: value)
+
+        assert min(bar_widths(render(sut))) >= 1
+
+    def test_pinned_scale_survives_a_pop(self) -> None:
+        """With bounds pinned, a bar keeps its length as the stack drains."""
+        sut = VizStack(
+            [1, 5, 9], config=LOUD, bar_of=lambda v: v, bar_min=0, bar_max=10
+        )
+        before = bar_widths(render(sut))[-1]
+
+        sut.pop()
+        sut.clear_highlights()
+
+        assert bar_widths(render(sut))[-1] == before
+
+    def test_unpinned_scale_only_widens(self) -> None:
+        """An unpinned bound remembers extremes that have left the stack."""
+        sut = VizStack(config=LOUD, bar_of=lambda value: value)
+        sut.push(100)
+        sut.pop()
+        sut.clear_highlights()
+        sut.push(1)
+        sut.push(50)
+
+        top, bottom = bar_widths(render(sut))
+
+        # 100 is gone but still sets the top of the scale, so 50 lands
+        # mid-range instead of being redrawn as the new full bar.
+        assert top > bottom
+        assert top < 12
+
+    def test_non_callable_bar_of_raises_type_error(self) -> None:
+        """A non-callable mapping fails at construction, not at render."""
+        with pytest.raises(TypeError):
+            VizStack([1], config=QUIET, bar_of=[1, 2, 3])  # type: ignore[arg-type]
+
+    def test_non_positive_bar_width_raises_value_error(self) -> None:
+        """A zero-width bar column is a caller mistake, not a silent no-op."""
+        with pytest.raises(ValueError):
+            VizStack([1], config=QUIET, bar_of=lambda v: v, bar_width=0)
